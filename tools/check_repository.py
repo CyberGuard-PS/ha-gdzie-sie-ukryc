@@ -3,6 +3,7 @@
 
 import argparse
 import ast
+import hashlib
 import json
 import re
 import struct
@@ -46,9 +47,17 @@ def check_repository(root=ROOT, allow_template=False):
         "frontend/vendor/LICENSE",
         "brand/icon.svg",
         "LICENSE",
+        "datasets/psp-punkty.csv",
+        "datasets/snapshot.json",
+        "datasets/README.md",
     ]:
         if not (integration / relative).is_file():
             raise ValueError(f"Brak dołączonego zasobu: {relative}")
+    snapshot = json.loads((integration / "datasets/snapshot.json").read_text(encoding="utf-8"))
+    if hashlib.sha256((integration / "datasets/psp-punkty.csv").read_bytes()).hexdigest() != snapshot.get("sha256"):
+        raise ValueError("Niezgodna suma SHA-256 dołączonej bazy PSP")
+    if snapshot.get("license") != "CC BY 4.0" or not (root / "DATA_LICENSE.md").is_file():
+        raise ValueError("Brak licencji lub atrybucji danych PSP")
     for filename, size in [("icon.png", 256), ("icon@2x.png", 512)]:
         image = (integration / "brand" / filename).read_bytes()
         if image[:8] != b"\x89PNG\r\n\x1a\n" or struct.unpack(">II", image[16:24]) != (size, size):

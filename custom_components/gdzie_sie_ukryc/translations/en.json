@@ -17,7 +17,7 @@
           "feed_url": "Full JSON feed URL"
         },
         "data_description": {
-          "source_mode": "Automatic mode sends each selected zone’s coordinates and search radius to gdziesieukryc.pl. Default refresh interval: 24 hours."
+          "source_mode": "Automatically downloads the full national PSP CSV export, checks it every 24 hours by default, and filters points locally. PSP declares weekly publication. The routing service receives origin and destination coordinates."
         }
       }
     },
@@ -48,7 +48,7 @@
           "feed_url": "Full JSON feed URL"
         },
         "data_description": {
-          "source_mode": "Automatic mode sends each selected zone’s coordinates and search radius to gdziesieukryc.pl. Default refresh interval: 24 hours."
+          "source_mode": "Automatically downloads the full national PSP CSV export, checks it every 24 hours by default, and filters points locally. PSP declares weekly publication. The routing service receives origin and destination coordinates."
         }
       }
     },

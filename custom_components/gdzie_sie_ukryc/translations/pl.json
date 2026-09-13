@@ -18,7 +18,7 @@
         },
         "data_description": {
           "routing_url": "Domyślnie publiczna usługa tras pieszych FOSSGIS. Przesyła współrzędne początku i końca trasy. Możesz podać własny serwer OSRM z danymi przygotowanymi profilem foot.",
-          "source_mode": "Tryb automatyczny wysyła do gdziesieukryc.pl współrzędne wybranych stref i promień. Domyślnie odświeża dane co 24 godziny."
+          "source_mode": "Pobiera całą opublikowaną bazę PSP jako CSV i filtruje punkty lokalnie. Domyślnie sprawdza eksport co 24 godziny; PSP deklaruje publikację co tydzień. Usługa tras otrzymuje współrzędne początku i celu."
         }
       }
     },
@@ -50,7 +50,7 @@
         },
         "data_description": {
           "routing_url": "Domyślnie publiczna usługa tras pieszych FOSSGIS. Przesyła współrzędne początku i końca trasy. Możesz podać własny serwer OSRM z danymi przygotowanymi profilem foot.",
-          "source_mode": "Tryb automatyczny wysyła do gdziesieukryc.pl współrzędne wybranych stref i promień. Domyślnie odświeża dane co 24 godziny."
+          "source_mode": "Pobiera całą opublikowaną bazę PSP jako CSV i filtruje punkty lokalnie. Domyślnie sprawdza eksport co 24 godziny; PSP deklaruje publikację co tydzień. Usługa tras otrzymuje współrzędne początku i celu."
         }
       }
     },

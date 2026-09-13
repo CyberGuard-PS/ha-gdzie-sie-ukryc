@@ -1,4 +1,4 @@
-/* Gdzie się ukryć 1.2.0 — local Lovelace card, no CDN dependency. */
+/* Gdzie się ukryć 1.3.0 — local Lovelace card, no CDN dependency. */
 const ASSET_BASE = new URL(".", import.meta.url);
 const COLORS = ["#176bd6", "#cf4c16", "#7f45b9", "#058273", "#bb2970", "#69561a"];
 
@@ -208,9 +208,18 @@ class GdzieSieUkrycCard extends HTMLElement {
     const sourceStatus = location?.source_status ?? this._data.source_status;
     const pointsDate = location && "points_updated_at" in location ? location.points_updated_at : this._data.points_updated_at;
     const sourceError = location && "source_error" in location ? location.source_error : this._data.source_error;
-    const automatic = this._data.source_mode === "psp";
-    const modes = { empty: "Brak punktów w danych źródłowych", imported: "Punkty z importu", ok: automatic ? "Punkty pobrane z gdziesieukryc.pl" : "Źródło odświeżone", cached: "Punkty z ostatniego zapisu", error: "Źródło niedostępne", partial: "Część lokalizacji wymaga odświeżenia" };
+    const fullDataset = this._data.source_mode === "open_data";
+    const automatic = fullDataset || this._data.source_mode === "psp";
+    const modes = { empty: "Brak punktów w danych źródłowych", imported: "Punkty z importu", ok: fullDataset ? "Cała opublikowana baza PSP" : automatic ? "Punkty pobrane z gdziesieukryc.pl" : "Źródło odświeżone", cached: "Punkty z ostatniego zapisu", error: "Źródło niedostępne", partial: "Część lokalizacji wymaga odświeżenia" };
     this._status.textContent = `${modes[sourceStatus] ?? "Punkty schronienia"} · dane: ${dateLabel(pointsDate)}`;
+    if (fullDataset) this._status.textContent += ` · ${this._data.point_count} punktów w bazie`;
+    if (fullDataset) {
+      const attribution = node("p", undefined, "empty");
+      const catalog = node("a", "Dane: Komenda Główna PSP (CC BY 4.0)");
+      catalog.href = "https://dane.gov.pl/pl/dataset/28058,punkty-schronienia-w-polsce";
+      catalog.target = "_blank"; catalog.rel = "noopener noreferrer";
+      attribution.append(catalog); this._list.append(attribution);
+    }
     if (!location) {
       this._list.append(node("p", this._data.origin_errors?.join(". ") || "Brak lokalizacji. W opcjach integracji wybierz strefę Dom.", "empty"));
       this._renderMap(fit); return;
@@ -218,6 +227,8 @@ class GdzieSieUkrycCard extends HTMLElement {
     const routes = location.routes ?? [];
     this._status.textContent += `\n${location.found_count} znalezionych punktów w promieniu · ${routes.length} tras · trasy: ${dateLabel(location.routes_updated_at)}`;
     const notes = [];
+    if (fullDataset) notes.push(`Pełny eksport PSP, publikowany co tydzień. Ostatnie sprawdzenie: ${dateLabel(this._data.dataset?.checked_at)}.`);
+    if (fullDataset && this._data.dataset?.origin === "bundled") notes.push("Używana jest baza dołączona do integracji. Odświeżenie pobierze aktualny eksport po przywróceniu dostępu.");
     if (sourceStatus === "cached") notes.push("Odświeżenie punktów nie powiodło się. Wyświetlane są ostatnie zapisane dane.");
     if (sourceError && ["cached", "error"].includes(sourceStatus)) notes.push(sourceError);
     if (location.result_limit_reached) notes.push(`Serwis zwrócił limit ${location.returned_count ?? 250} wyników. Licznik nie oznacza pełnej liczby punktów w okolicy.`);
@@ -231,6 +242,7 @@ class GdzieSieUkrycCard extends HTMLElement {
       const emptyMessage = sourceStatus === "error" ? "Nie udało się pobrać punktów dla tej lokalizacji. Sprawdź komunikat powyżej i użyj przycisku Odśwież po przywróceniu połączenia."
         : location.found_count > 0 ? "Punkty znalezione; brak obliczonej trasy pieszej. Sprawdź usługę tras i odśwież."
         : this._data.source_mode === "import" && this._data.point_count === 0 ? "Zaimportuj plik JSON z punktami z serwisu. Instrukcja jest w paczce integracji."
+        : fullDataset ? "W opublikowanej bazie PSP nie znaleziono punktów w wybranym promieniu. Sprawdź lokalizację Dom i promień w opcjach integracji."
         : automatic ? "Serwis nie zwrócił punktów w wybranym promieniu. Możesz zwiększyć promień w opcjach integracji."
         : "Brak znanych punktów w promieniu tej lokalizacji. Zwiększ promień lub sprawdź zakres danych źródłowych.";
       this._list.append(node("p", emptyMessage, "empty"));

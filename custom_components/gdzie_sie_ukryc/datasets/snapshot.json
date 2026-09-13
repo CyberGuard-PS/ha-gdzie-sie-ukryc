@@ -1,0 +1,17 @@
+{
+  "provider": "psp_open_data",
+  "publisher": "Komenda Główna Państwowej Straży Pożarnej",
+  "source_url": "https://gdziesieukryc.pl/PS_XML/punkty_schronienia.csv",
+  "catalog_url": "https://dane.gov.pl/pl/dataset/28058,punkty-schronienia-w-polsce",
+  "license": "CC BY 4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "update_frequency": "Co tydzień",
+  "captured_at": "2026-09-13T12:56:25.620928+00:00",
+  "sha256": "5ac8a41ffae67a1b5acf0ab679182d80c78019e6300c3afbd62ecadbaf8e728b",
+  "total_rows": 85739,
+  "point_count": 85739,
+  "skipped_points": 0,
+  "duplicate_ids": 0,
+  "catalog_described_count": 85853,
+  "catalog_data_date": "2026-09-07"
+}

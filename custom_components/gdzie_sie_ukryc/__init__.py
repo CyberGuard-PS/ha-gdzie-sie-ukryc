@@ -19,6 +19,19 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     return True
 
 
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    if entry.version > 2:
+        return False
+    if entry.version == 1:
+        data, options = dict(entry.data), dict(entry.options)
+        if options.get("source_mode", data.get("source_mode", "psp")) == "psp":
+            data["source_mode"] = "open_data"
+            if "source_mode" in options:
+                options["source_mode"] = "open_data"
+        hass.config_entries.async_update_entry(entry, data=data, options=options, version=2)
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = ShelterCoordinator(hass, entry)
     entry.runtime_data = coordinator

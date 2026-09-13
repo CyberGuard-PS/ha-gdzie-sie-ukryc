@@ -17,7 +17,8 @@ def schema(values):
             vol.Required("source_mode", default=values["source_mode"]): selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=[
-                        {"value": "psp", "label": "Automatycznie z gdziesieukryc.pl"},
+                        {"value": "open_data", "label": "Cała baza PSP — automatyczny eksport CSV"},
+                        {"value": "psp", "label": "Wewnętrzne zapytanie strony (starszy tryb, może zwracać 403)"},
                         {"value": "import", "label": "Import JSON w karcie mapy"},
                         {"value": "file", "label": "Lokalny plik JSON / GeoJSON"},
                         {"value": "url", "label": "Jawny adres feedu JSON (zaawansowane)"},
@@ -72,7 +73,7 @@ def validate(values):
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    VERSION = 1
+    VERSION = 2
 
     async def async_step_user(self, user_input=None):
         if self._async_current_entries():

@@ -73,11 +73,12 @@ async def test_automatic_setup_per_zone_cache_failure_moved_origin_and_empty_res
             patch("custom_components.gdzie_sie_ukryc.coordinator.asyncio.sleep", new=AsyncMock()),
         ):
             form = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
-            assert DEFAULTS["source_mode"] == "psp"
+            assert DEFAULTS["source_mode"] == "open_data"
             created = await hass.config_entries.flow.async_configure(
                 form["flow_id"],
                 {
                     **DEFAULTS,
+                    "source_mode": "psp",
                     "zones": ["zone.home", "zone.work"],
                     "max_routes": 2,
                     "candidate_limit": 3,

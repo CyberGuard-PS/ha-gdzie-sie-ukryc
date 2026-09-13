@@ -6,6 +6,7 @@ import importlib
 import json
 import sys
 import types
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,11 +15,12 @@ package = types.ModuleType("gsu_import")
 package.__path__ = [str(ROOT / "custom_components" / "gdzie_sie_ukryc")]
 sys.modules[package.__name__] = package
 data = importlib.import_module("gsu_import.data")
+csv_data = importlib.import_module("gsu_import.csv_data")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Przetwórz odpowiedź JSON/GeoJSON lub HAR z gdziesieukryc.pl do punktów dla HA. Bez dostępu do sieci."
+        description="Przetwórz eksport CSV PSP, JSON/GeoJSON lub HAR do punktów dla HA. Bez dostępu do sieci."
     )
     parser.add_argument("input", type=Path)
     parser.add_argument("output", type=Path)
@@ -28,18 +30,25 @@ def main():
             raise ValueError("Plik wejściowy i wyjściowy muszą być różne")
         if args.input.stat().st_size > 256 * 1024 * 1024:
             raise ValueError("Plik wejściowy przekracza 256 MiB; zapisz pojedynczą odpowiedź JSON")
-        payload = json.loads(args.input.read_text(encoding="utf-8-sig"))
-        result = (
-            data.parse_har(payload) if isinstance(payload, dict) and "log" in payload else data.parse_payload(payload)
-        )
+        if args.input.suffix.lower() == ".csv":
+            imported = csv_data.parse_csv(args.input.read_bytes())
+            timestamp = datetime.fromtimestamp(args.input.stat().st_mtime, timezone.utc).isoformat()
+            result = data.ImportResult(imported.points, imported.skipped, timestamp)
+        else:
+            payload = json.loads(args.input.read_text(encoding="utf-8-sig"))
+            result = (
+                data.parse_har(payload)
+                if isinstance(payload, dict) and "log" in payload
+                else data.parse_payload(payload)
+            )
         if not result.points:
             raise ValueError("Brak punktów do importu")
         output = json.dumps(data.normalize(result), ensure_ascii=False, indent=2)
-        if len(output.encode()) > 8 * 1024 * 1024:
+        if len(output.encode()) > 64 * 1024 * 1024:
             # Compact JSON lets a country-wide dataset fit where possible.
             output = json.dumps(data.normalize(result), ensure_ascii=False, separators=(",", ":"))
-        if len(output.encode()) > 8 * 1024 * 1024:
-            raise ValueError("Wynik przekracza 8 MiB. Zapisz dane ograniczone do obszarów wybranych lokalizacji")
+        if len(output.encode()) > 64 * 1024 * 1024:
+            raise ValueError("Wynik przekracza 64 MiB")
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(output + "\n", encoding="utf-8")
         print(f"Zapisano {len(result.points)} punktów do {args.output}. Pominięto: {result.skipped}.")

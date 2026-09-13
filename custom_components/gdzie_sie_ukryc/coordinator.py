@@ -1,4 +1,4 @@
-"""Automatic nearby data for each HA zone, optional imports and persisted routes."""
+"""Full national PSP export, optional sources and persisted walking routes."""
 
 from __future__ import annotations
 
@@ -16,9 +16,11 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .api import JsonClient, SourceError, WalkingRouter, plan_routes, utcnow
-from .const import DOMAIN, MAX_BYTES, MAX_ZONES, settings
+from .const import DATA_LICENSE_URL, DOMAIN, MAX_DATASET_BYTES, MAX_ZONES, OPEN_DATA_URL, PSP_EXPORT_URL, settings
+from .csv_data import parse_csv
 from .data import ImportResult, PayloadError, normalize, parse_payload
 from .models import Origin, candidates, coordinate
+from .open_data import OpenDataClient
 from .psp import PSPClient
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,11 +31,23 @@ def _load_file(config_dir: str, relative_path: str):
     path = (root / relative_path).resolve()
     if not path.is_relative_to(root) or path.suffix.lower() not in {".json", ".geojson"}:
         raise PayloadError("Plik JSON musi znajdować się w katalogu konfiguracji HA")
-    if path.stat().st_size > MAX_BYTES:
-        raise PayloadError("Plik przekracza 8 MiB")
+    if path.stat().st_size > MAX_DATASET_BYTES:
+        raise PayloadError("Plik przekracza 64 MiB")
     result = parse_payload(json.loads(path.read_text(encoding="utf-8")))
     timestamp = result.captured_at or datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).isoformat()
     return result, timestamp
+
+
+def _load_bundled():
+    directory = Path(__file__).parent / "datasets"
+    body = (directory / "psp-punkty.csv").read_bytes()
+    metadata = json.loads((directory / "snapshot.json").read_text(encoding="utf-8"))
+    if hashlib.sha256(body).hexdigest() != metadata.get("sha256"):
+        raise PayloadError("Nieprawidłowa suma kontrolna dołączonej bazy PSP")
+    result = parse_csv(body)
+    if result.total_rows != metadata.get("total_rows") or len(result.points) != metadata.get("point_count"):
+        raise PayloadError("Niezgodna liczba rekordów dołączonej bazy PSP")
+    return result, metadata
 
 
 def valid_timestamp(value) -> str | None:
@@ -62,11 +76,15 @@ class ShelterCoordinator(DataUpdateCoordinator[dict]):
         self.session = async_get_clientsession(hass)
         self.router = WalkingRouter(self.session, self.options["routing_url"])
         self.psp = PSPClient(self.session)
+        self.open_data = OpenDataClient(self.session)
         self.store = Store(hass, 1, f"{DOMAIN}.{entry.entry_id}")
         self.points = []
         self.points_updated_at = None
         self.saved_locations = {}
         self.nearby_snapshots = {}
+        self.source_metadata = {}
+        self.source_attempted_at = None
+        self.export_error = None
         self.force_routes = False
         self.import_lock = asyncio.Lock()
 
@@ -80,8 +98,76 @@ class ShelterCoordinator(DataUpdateCoordinator[dict]):
                 self.saved_locations = saved.get("locations", {})
                 snapshots = saved.get("nearby_snapshots", {})
                 self.nearby_snapshots = snapshots if isinstance(snapshots, dict) else {}
+                metadata = saved.get("source_metadata", {})
+                self.source_metadata = metadata if isinstance(metadata, dict) else {}
+                self.source_attempted_at = valid_timestamp(saved.get("source_attempted_at"))
+                self.export_error = saved.get("export_error")
             except (PayloadError, AttributeError, TypeError):
                 _LOGGER.warning("Nie udało się odczytać zapisanych punktów schronienia")
+        if self.options["source_mode"] != "open_data":
+            self.source_metadata, self.source_attempted_at, self.export_error = {}, None, None
+        elif self.source_metadata.get("provider") != "psp_open_data" or self.source_metadata.get("point_count") != len(
+            self.points
+        ):
+            # A previous nearby/import dataset must never be labelled as the full national export.
+            self.points, self.points_updated_at = [], None
+            self.source_metadata, self.source_attempted_at, self.export_error = {}, None, None
+            try:
+                result, metadata = await self.hass.async_add_executor_job(_load_bundled)
+                self.points = result.points
+                self.points_updated_at = valid_timestamp(metadata.get("captured_at"))
+                self.source_metadata = {**metadata, "origin": "bundled"}
+            except (OSError, ValueError, TypeError) as err:
+                _LOGGER.warning("Nie udało się odczytać dołączonej bazy PSP: %s", err)
+
+    async def _read_open_data(self):
+        """Refresh once for all zones; an outage retains the last complete export."""
+        now = datetime.now(timezone.utc)
+        attempted = valid_timestamp(self.source_attempted_at)
+        recent = attempted and now - datetime.fromisoformat(attempted) < timedelta(hours=self.options["update_hours"])
+        if not self.force_routes and recent:
+            return ("cached" if self.points else "error", self.export_error) if self.export_error else ("ok", None)
+        self.source_attempted_at = utcnow()
+        try:
+            downloaded = await self.open_data.fetch(
+                self.source_metadata.get("etag") if self.points else None,
+                self.source_metadata.get("last_modified") if self.points else None,
+            )
+            if downloaded.body is None:
+                if not self.points:
+                    raise SourceError("Eksport CSV PSP: HTTP 304 bez lokalnej bazy")
+            else:
+                digest = hashlib.sha256(downloaded.body).hexdigest()
+                if not self.points or digest != self.source_metadata.get("sha256"):
+                    result = await self.hass.async_add_executor_job(parse_csv, downloaded.body)
+                    self.points = result.points
+                    self.points_updated_at = utcnow()
+                    self.source_metadata = {
+                        "provider": "psp_open_data",
+                        "source_url": PSP_EXPORT_URL,
+                        "catalog_url": OPEN_DATA_URL,
+                        "publisher": "Komenda Główna Państwowej Straży Pożarnej",
+                        "license": "CC BY 4.0",
+                        "license_url": DATA_LICENSE_URL,
+                        "update_frequency": "Co tydzień",
+                        "sha256": digest,
+                        "point_count": len(result.points),
+                        "total_rows": result.total_rows,
+                        "skipped_points": result.skipped,
+                        "duplicate_ids": result.duplicates,
+                        "captured_at": self.points_updated_at,
+                    }
+            self.source_metadata.update(origin="live", checked_at=utcnow())
+            if downloaded.etag is not None:
+                self.source_metadata["etag"] = downloaded.etag
+            if downloaded.last_modified is not None:
+                self.source_metadata["last_modified"] = downloaded.last_modified
+            self.export_error = None
+            return "ok", None
+        except (SourceError, PayloadError) as err:
+            self.export_error = str(err)
+            _LOGGER.warning("Nie udało się odświeżyć pełnej bazy PSP: %s", err)
+            return "cached" if self.points else "error", self.export_error
 
     def origins(self) -> tuple[list[Origin], list[str]]:
         origins, errors = [], []
@@ -182,6 +268,8 @@ class ShelterCoordinator(DataUpdateCoordinator[dict]):
 
     async def _read_source(self):
         mode = self.options["source_mode"]
+        if mode == "open_data":
+            return await self._read_open_data()
         if mode == "import":
             return "imported" if self.points else "empty", None
         try:
@@ -211,6 +299,7 @@ class ShelterCoordinator(DataUpdateCoordinator[dict]):
             else:
                 source_status, source_error = await self._read_source()
             locations = {}
+            dataset = self.source_metadata if self.options["source_mode"] == "open_data" else {}
             circuit_open = False
             now = datetime.now(timezone.utc)
             for origin in origins:
@@ -262,6 +351,7 @@ class ShelterCoordinator(DataUpdateCoordinator[dict]):
                     "source_error": source_error,
                     "points_updated_at": self.points_updated_at,
                     "result_limit_reached": False,
+                    "skipped_points": dataset.get("skipped_points", 0),
                     **{key: value for key, value in zone_source.items() if key != "points"},
                     "origin": origin.as_dict(),
                     "signature": signature,
@@ -286,6 +376,7 @@ class ShelterCoordinator(DataUpdateCoordinator[dict]):
                 "source_error": source_error,
                 "origin_errors": origin_errors,
                 "source_mode": self.options["source_mode"],
+                "dataset": dataset,
                 "locations": locations,
             }
 
@@ -296,6 +387,9 @@ class ShelterCoordinator(DataUpdateCoordinator[dict]):
                 "points_updated_at": self.points_updated_at,
                 "locations": self.saved_locations,
                 "nearby_snapshots": self.nearby_snapshots,
+                "source_metadata": self.source_metadata if self.options["source_mode"] == "open_data" else {},
+                "source_attempted_at": self.source_attempted_at if self.options["source_mode"] == "open_data" else None,
+                "export_error": self.export_error if self.options["source_mode"] == "open_data" else None,
             }
         )
 

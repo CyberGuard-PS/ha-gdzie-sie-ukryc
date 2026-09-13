@@ -33,7 +33,7 @@ def build_release(output: Path, tag=None):
 def main():
     parser = argparse.ArgumentParser(description="Zbuduj ZIP do dołączenia do GitHub Release.")
     parser.add_argument("--output", type=Path, default=ROOT / "dist/gdzie_sie_ukryc.zip")
-    parser.add_argument("--tag", help="Opcjonalna kontrola zgodności tagu, np. v1.2.0")
+    parser.add_argument("--tag", help="Opcjonalna kontrola zgodności tagu, np. v1.3.0")
     args = parser.parse_args()
     try:
         build_release(args.output, args.tag)

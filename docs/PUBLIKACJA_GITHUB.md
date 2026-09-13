@@ -1,91 +1,95 @@
-# Publikacja repozytorium na GitHubie
+# Aktualizacja i publikacja na GitHubie
 
-ZIP zawiera pełne źródła repozytorium, integrację, kartę mapy, ikonę, licencje, przykłady, testy i konfigurację GitHub Actions. Rozpakuj go do jednego katalogu na komputerze. Do GitHuba przesyłasz **zawartość tego katalogu**, tak aby `hacs.json`, `README.md` i `custom_components` znajdowały się w głównym katalogu repozytorium.
+Paczka jest przygotowana dla **[CyberGuard-PS/ha-gdzie-sie-ukryc](https://github.com/CyberGuard-PS/ha-gdzie-sie-ukryc)**. Zawiera pełne źródła, integrację, kartę, licencje, pełną bazę CSV, pełny JSON, testy i GitHub Actions. Na GitHubie `hacs.json`, `README.md` i `custom_components` mają znajdować się w głównym katalogu repozytorium.
 
-## 1. Uzupełnij tożsamość repozytorium
+## Aktualizacja istniejącego repozytorium do 1.3.0
 
-Nie da się z góry ustalić Twojego loginu GitHub. Z katalogu rozpakowanej paczki uruchom na Macu/Linuxie:
+1. Otwórz swój dotychczasowy lokalny katalog repozytorium. Najpierw pobierz zmiany z GitHuba:
 
 ```bash
-python3 tools/prepare_repository.py TWOJ_LOGIN
+git pull --no-rebase origin main
+```
+
+2. Rozpakuj ZIP i skopiuj **jego zawartość** do tego katalogu, zastępując pliki wcześniejszej wersji. Zachowaj istniejący katalog `.git`. Skopiuj również `.github`, inne pliki konfiguracji, `datasets` w integracji i `export` w katalogu głównym.
+3. W katalogu repozytorium uruchom:
+
+```bash
+python3 tools/check_repository.py
+git add .
+git commit -m "Update 1.3.0: complete PSP dataset"
+git push origin main
+```
+
+Nie trzeba ponownie wykonywać `git init` ani dodawać `origin`. Jeśli masz niezacommitowane wcześniejsze zmiany, zachowaj je przez commit lub stash przed pobraniem zmian. W razie konfliktów scal pliki i zakończ merge przed pushem.
+
+Możesz wykonać te same kroki przez GitHub Desktop: **Fetch/Pull origin**, skopiowanie plików paczki, commit i **Push origin**.
+
+## Nowy checkout
+
+Jeśli nie masz lokalnego repozytorium, najpierw sklonuj istniejące:
+
+```bash
+git clone https://github.com/CyberGuard-PS/ha-gdzie-sie-ukryc.git
+cd ha-gdzie-sie-ukryc
+```
+
+Następnie skopiuj zawartość ZIP do tego katalogu i wykonaj check, commit oraz push jak powyżej. Dzięki temu uwzględnisz historię już istniejącą na GitHubie.
+
+## Tożsamość i uwierzytelnienie Git
+
+Jeśli Git zgłasza brak autora, skonfiguruj go dla tego repozytorium (zastąp wartości swoimi):
+
+```bash
+git config user.name "Piotr"
+git config user.email "TWOJ_ADRES_EMAIL_LUB_GITHUB_NOREPLY"
+```
+
+GitHub nie przyjmuje hasła konta do operacji Git przez HTTPS. Możesz użyć GitHub Desktop lub, jeśli masz GitHub CLI:
+
+```bash
+gh auth login --hostname github.com --git-protocol https --web --scopes workflow
+gh auth setup-git
+```
+
+Nie wpisuj tokenu do adresu zdalnego repozytorium ani plików projektu.
+
+## Wydanie i HACS
+
+Po pushu sprawdź **Actions**: testy kodu i oficjalny walidator HACS. Repozytorium dla HACS powinno być publiczne, mieć opis, włączone Issues oraz tematy, np. `home-assistant`, `hacs`, `custom-integration`, `poland`, `shelter`, `lovelace`.
+
+Gdy testy przejdą, wybierz **Releases → Draft a new release**, utwórz i opublikuj tag **`v1.3.0`** na `main`. Historia zmian jest w `CHANGELOG.md`. Workflow wydania dołączy `gdzie_sie_ukryc.zip` z całym katalogiem integracji, w tym pełną bazą CSV i licencjami.
+
+Lokalne zbudowanie paczki instalacyjnej:
+
+```bash
+python3 tools/build_release.py --tag v1.3.0
+```
+
+Wynik: `dist/gdzie_sie_ukryc.zip`. Nie commituj `dist`. HACS pobiera katalog integracji ze źródeł wydania; nie trzeba ustawiać `zip_release`.
+
+W HA dodaj `https://github.com/CyberGuard-PS/ha-gdzie-sie-ukryc` w **HACS → ⋮ → Repozytoria niestandardowe**, typ **Integration**. Pobierz aktualizację, uruchom HA ponownie i wybierz pełny eksport CSV zgodnie z README. Nie trzeba zgłaszać repozytorium do głównego katalogu HACS.
+
+## Inny właściciel lub nazwa projektu
+
+Metadane są już ustawione dla CyberGuard-PS. Dla innego repozytorium możesz uruchomić bez połączenia z siecią:
+
+```bash
+python3 tools/prepare_repository.py TWOJ_LOGIN --repository NAZWA_REPO --codeowner LOGIN_OPIEKUNA
 python3 tools/check_repository.py
 ```
 
-Zastąp `TWOJ_LOGIN` swoim rzeczywistym loginem. Domyślna nazwa repozytorium to `ha-gdzie-sie-ukryc`. Skrypt nie łączy się z siecią. Uzupełnia `documentation`, `issue_tracker`, `codeowners` w manifeście, adresy w README, link pomocy w formularzu zgłoszeń i `.github/CODEOWNERS`.
+Skrypt aktualizuje manifest, adresy README, pomoc w formularzu zgłoszeń i CODEOWNERS. Jeśli CyberGuard-PS jest organizacją, ustaw `--codeowner` na rzeczywisty login opiekuna. Na Windowsie użyj `py -3` zamiast `python3`.
 
-Gdy używasz innej nazwy lub organizacji:
+## Publikowane dane
 
-```bash
-python3 tools/prepare_repository.py NAZWA_ORGANIZACJI --repository NAZWA_REPO --codeowner TWOJ_LOGIN
-```
+Dołączony ogólnopolski eksport PSP jest oficjalnie opublikowany na **CC BY 4.0**. Możesz umieścić go w repozytorium wraz z atrybucją `DATA_LICENSE.md`, `datasets/README.md` i metadanymi. Pełny JSON jest pochodną tego eksportu. Fikcyjne dane testowe są oznaczone w przykładach.
 
-Na Windowsie użyj `py -3` zamiast `python3`. Wystarczy Python 3.10+; nie instaluj HA, aby tylko przygotować repozytorium.
+Nie dodawaj swojego HAR, kopii konfiguracji HA, lokalizacji domu ani tokenów. Wydanie nie zawiera tych danych. Automatyczny pełny eksport nie wysyła współrzędnych stref do PSP.
 
-Alternatywnie uzupełnij ręcznie `REPLACE_ME` w `manifest.json`, `README.md`, `.github/CODEOWNERS` i `.github/ISSUE_TEMPLATE/config.yml`. Adresy muszą wskazywać Twoje repozytorium, a opiekun kodu musi być rzeczywistym kontem GitHub. Nie publikuj szablonowych danych jako gotowego wydania.
+## Oficjalna dokumentacja
 
-## 2. Utwórz repozytorium
-
-Na GitHubie utwórz repozytorium `ha-gdzie-sie-ukryc` w swoim koncie lub organizacji. Dla HACS ustaw **Public**, włącz **Issues** i wpisz opis:
-
-> Home Assistant: mapa tras pieszych do pobliskich punktów schronienia z gdziesieukryc.pl.
-
-Dodaj tematy w polu Topics: `home-assistant`, `hacs`, `custom-integration`, `poland`, `shelter`, `lovelace`.
-
-Przy publikowaniu przez Git nie twórz osobno README ani licencji na ekranie tworzenia repozytorium: te pliki są już w paczce.
-
-## 3. Wyślij pliki
-
-Z rozpakowanego katalogu, po przygotowaniu metadanych:
-
-```bash
-git init -b main
-git add .
-git commit -m "Initial release 1.2.0"
-git remote add origin https://github.com/TWOJ_LOGIN/ha-gdzie-sie-ukryc.git
-git push -u origin main
-```
-
-Zmień URL na własny. Do uwierzytelnienia użyj normalnego logowania GitHub, GitHub Desktop albo swojego klienta Git. Nie wpisuj tokenu do URL ani plików projektu. Na Macu możesz również wybrać **File → Add Local Repository** w GitHub Desktop i opublikować repozytorium jako publiczne.
-
-Możesz przesłać pliki przez stronę GitHuba, ale dopilnuj obecności `.github` z workflowami i pozostałych plików repozytorium. Do głównego katalogu wrzuć rozpakowane źródła, nie sam plik ZIP. ZIP instalacyjny jest dodatkiem do wydania.
-
-## 4. Sprawdź Actions
-
-Po pierwszym pushu otwórz kartę **Actions**:
-
-- **Testy kodu**: Python, Ruff, struktura repozytorium i testy karty na Node.js.
-- **Walidacja HACS**: oficjalny walidator repozytoriów typu integration. Wymaga rzeczywistego publicznego repozytorium, opisu i tematów.
-
-Nie są potrzebne dodatkowe sekrety API. Jeśli test struktury wskazuje `REPLACE_ME`, wróć do kroku 1 i wyślij poprawione pliki. Lokalne sprawdzenie struktury nie zastępuje oficjalnego walidatora HACS na GitHubie.
-
-## 5. Utwórz wydanie
-
-Gdy testy przejdą, wybierz **Releases → Draft a new release**, utwórz tag **`v1.2.0`** na gałęzi `main` i opublikuj wydanie. Treść zmian znajdziesz w `CHANGELOG.md`.
-
-Workflow **Paczka wydania** zbuduje ZIP `gdzie_sie_ukryc.zip` z całym katalogiem integracji i dołączy go do tego wydania. To paczka do instalacji ręcznej. HACS pobiera katalog integracji ze źródeł wydania, dlatego nie wymaga ręcznego dołączania ZIP-a ani ustawienia `zip_release`.
-
-Jeśli Actions są wyłączone lub automatyczne dołączenie paczki nie zadziała, utwórz ZIP lokalnie:
-
-```bash
-python3 tools/build_release.py --tag v1.2.0
-```
-
-Dołącz `dist/gdzie_sie_ukryc.zip` do wydania. Nie commituj `dist`. Przy kolejnych wydaniach wersja manifestu i tag muszą być zgodne.
-
-## 6. Dodaj repozytorium do HACS
-
-W HA: **HACS → ⋮ → Repozytoria niestandardowe**, wklej URL swojego repozytorium i wybierz **Integration / Integracja**. Pobierz projekt, uruchom HA ponownie i dodaj integrację zgodnie z README. Nie trzeba zgłaszać repozytorium do głównego katalogu HACS, aby używać go jako repozytorium niestandardowego.
-
-## Zawartość publicznego wydania
-
-Wszystkie pliki ZIP-a są przeznaczone do umieszczenia w repozytorium. Dane testowe są fikcyjne. Nie dodawaj do niego pełnego HAR, zapisów lokalizacji domu, kopii HA, tokenów ani wyodrębnionej prywatnie listy rzeczywistych punktów. Plik `.gitignore` pomija typowe pliki tego rodzaju.
-
-Dokumentacja zaznacza, że projekt jest niezależną integracją społecznościową i korzysta z wewnętrznego interfejsu strony. Testy nie potwierdzają dostępu z każdego hosta HA ani bieżącej dostępności punktów schronienia.
-
-## Dokumentacja źródłowa
-
-- [Wymagania publikacji integracji HACS](https://www.hacs.xyz/docs/publish/integration/).
-- [Ogólne wymagania i wersje HACS](https://www.hacs.xyz/docs/publish/start/).
+- [Wymagania integracji HACS](https://www.hacs.xyz/docs/publish/integration/).
 - [Repozytoria niestandardowe HACS](https://www.hacs.xyz/docs/faq/custom_repositories/).
-- [Oficjalny walidator GitHub Actions HACS](https://www.hacs.xyz/docs/publish/action/).
-- [Manifest integracji Home Assistant](https://developers.home-assistant.io/docs/creating_integration_manifest/).
+- [Walidator HACS](https://www.hacs.xyz/docs/publish/action/).
+- [Manifest integracji HA](https://developers.home-assistant.io/docs/creating_integration_manifest/).
+- [Dane PSP i licencja](https://api.dane.gov.pl/1.4/datasets/28058,punkty-schronienia-w-polsce).

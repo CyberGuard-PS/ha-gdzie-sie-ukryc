@@ -1,5 +1,17 @@
 # Historia zmian
 
+## 1.3.0 — 2026-09-13
+
+- Domyślne automatyczne pobieranie pełnego, oficjalnie opublikowanego eksportu CSV PSP.
+- Jedno pobranie dla wszystkich stref i wyszukiwanie lokalne bez limitu 250 punktów.
+- Dołączona pełna baza 85 739 punktów, używana także przy pierwszym uruchomieniu bez dostępu do eksportu.
+- Okresowe sprawdzanie eksportu, obsługa ETag / Last-Modified i zachowanie ostatniej poprawnej pełnej bazy przy błędach.
+- Migracja wpisów korzystających ze starego trybu PSP, z zachowaniem stref i promienia.
+- Karta i sensory pokazują rozmiar pełnej bazy, jej pochodzenie i czas sprawdzenia.
+- Pełny JSON w `export`, konwerter CSV i samodzielny skrypt pobierania dla wydawcy.
+- Limit lokalnego JSON zwiększony do 64 MiB; dane PSP na CC BY 4.0 z atrybucją.
+- Metadane repozytorium przygotowane dla CyberGuard-PS/ha-gdzie-sie-ukryc.
+
 ## 1.2.0 — 2026-09-13
 
 - Układ repozytorium przeznaczony do instalacji jako integracja HACS.

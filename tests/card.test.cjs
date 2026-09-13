@@ -38,6 +38,37 @@ async function mount(admin = true) {
   return { dom, window, card, hass, calls, setData(value) { data = value; }, close() { card.remove(); dom.window.close(); } };
 }
 
+test("national CSV mode shows full coverage, attribution and bundled fallback", async () => {
+  const fixture = await mount();
+  try {
+    const data = structuredClone(original);
+    Object.assign(data, {
+      source_mode: "open_data", source_status: "ok", point_count: 85739,
+      dataset: { origin: "live", checked_at: data.points_updated_at },
+    });
+    Object.assign(data.locations["zone.home"], {
+      source_status: "ok", source_error: null, found_count: 500,
+      result_limit_reached: false,
+    });
+    fixture.setData(data);
+    await fixture.card._load();
+    assert.equal(fixture.card._importButton.hidden, true);
+    assert.match(fixture.card._status.textContent, /85739 punktów w bazie/);
+    assert.match(fixture.card._status.textContent, /500 znalezionych/);
+    assert.match(fixture.card._notice.textContent, /co tydzień/);
+    assert.doesNotMatch(fixture.card._notice.textContent, /limit 250/);
+    const attribution = [...fixture.card.shadowRoot.querySelectorAll("a")].find(link => /CC BY 4.0/.test(link.textContent));
+    assert.equal(attribution.href, "https://dane.gov.pl/pl/dataset/28058,punkty-schronienia-w-polsce");
+    data.dataset.origin = "bundled";
+    Object.assign(data.locations["zone.home"], { source_status: "cached", source_error: "Eksport CSV PSP: HTTP 403" });
+    fixture.setData(data);
+    await fixture.card._load();
+    assert.match(fixture.card._notice.textContent, /baza dołączona/);
+    assert.match(fixture.card._notice.textContent, /403/);
+    assert.equal(fixture.card.shadowRoot.querySelectorAll(".route").length, 3);
+  } finally { fixture.close(); }
+});
+
 test("card draws real route geometries, switches zones and resets selected route", async () => {
   const fixture = await mount();
   try {
