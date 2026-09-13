@@ -19,7 +19,7 @@ from .api import JsonClient, SourceError, WalkingRouter, plan_routes, utcnow
 from .const import DATA_LICENSE_URL, DOMAIN, MAX_DATASET_BYTES, MAX_ZONES, OPEN_DATA_URL, PSP_EXPORT_URL, settings
 from .csv_data import parse_csv
 from .data import ImportResult, PayloadError, normalize, parse_payload
-from .models import Origin, candidates, coordinate
+from .models import Origin, candidates, coordinate, distance_m
 from .open_data import OpenDataClient
 from .psp import PSPClient
 
@@ -87,6 +87,26 @@ class ShelterCoordinator(DataUpdateCoordinator[dict]):
         self.export_error = None
         self.force_routes = False
         self.import_lock = asyncio.Lock()
+
+    async def async_route_from_device(self, point_id: str, latitude, longitude):
+        """Return a one-off route without changing zone routes, entities or the Store."""
+        try:
+            origin = Origin("device", "Moja aktualna lokalizacja", coordinate(latitude, 90), coordinate(longitude, 180))
+        except (ValueError, TypeError, OverflowError) as err:
+            raise PayloadError("Urządzenie podało nieprawidłowe współrzędne lokalizacji") from err
+        if not isinstance(point_id, str) or not point_id:
+            raise PayloadError("Wybierz punkt schronienia z mapy lub listy")
+        shelter = next((point for point in self.points if point.id == point_id), None)
+        if shelter is None:
+            raise PayloadError("Punkt nie istnieje w aktualnej bazie. Odśwież kartę i wybierz go ponownie")
+        straight = distance_m(origin.latitude, origin.longitude, shelter.latitude, shelter.longitude)
+        route = await self.router.route(origin, shelter, straight)
+        return {
+            "origin": origin.as_dict(),
+            "route": route,
+            "points_updated_at": self.points_updated_at,
+            "source_status": (self.data or {}).get("source_status"),
+        }
 
     async def _async_setup(self):
         saved = await self.store.async_load()

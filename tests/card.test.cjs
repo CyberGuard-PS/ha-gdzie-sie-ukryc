@@ -11,6 +11,11 @@ const pause = (ms) => new Promise((done) => setTimeout(done, ms));
 async function mount(admin = true) {
   const dom = new JSDOM("<!doctype html><body></body>", { url: "http://ha.test/", runScripts: "outside-only", pretendToBeVisual: true });
   const { window } = dom;
+  Object.defineProperty(window, "isSecureContext", { value: true, writable: true });
+  const geoCalls = [];
+  let locate = success => success({ coords: { latitude: 50.2972, longitude: 18.6694, accuracy: 25 }, timestamp: Date.parse("2026-09-13T15:10:00Z") });
+  const geolocation = { getCurrentPosition(success, error, options) { geoCalls.push(options); locate(success, error, options); } };
+  Object.defineProperty(window.navigator, "geolocation", { value: geolocation, configurable: true });
   window.ResizeObserver = class { observe() {} disconnect() {} };
   window.SVGSVGElement.prototype.createSVGRect = () => ({});
   for (const key of ["clientWidth", "offsetWidth"]) Object.defineProperty(window.HTMLElement.prototype, key, { get() { return parseInt(this.style.width, 10) || 900; } });
@@ -21,12 +26,21 @@ async function mount(admin = true) {
     .replace("import.meta.url", JSON.stringify("http://ha.test/gdzie_sie_ukryc/frontend/gdzie-sie-ukryc-card.js"));
   window.eval(source);
   let data = structuredClone(original);
+  let routeHandler = message => {
+    const points = Object.values(data.locations).flatMap(location => [...(location.routes ?? []), ...(location.nearby ?? []), ...(location.unrouted ?? [])]);
+    const shelter = structuredClone(points.find(point => point.shelter.id === message.point_id).shelter);
+    return { origin: { id: "device", name: "Moja aktualna lokalizacja", latitude: message.latitude, longitude: message.longitude }, route: {
+      shelter, distance_m: 350, duration_s: 280, mode: "foot", status: "fresh", calculated_at: "2026-09-13T15:10:01Z",
+      geometry: { type: "LineString", coordinates: [[message.longitude, message.latitude], [shelter.longitude, shelter.latitude]] }, start_gap_m: 0, end_gap_m: 0,
+    }, points_updated_at: data.points_updated_at, source_status: data.source_status };
+  };
   const calls = [];
   const hass = { states: {}, user: { is_admin: admin }, async callWS(message) {
     calls.push(message);
     if (message.type.endsWith("/list")) return [{ entry_id: "test" }];
     if (message.type.endsWith("/data")) return structuredClone(data);
     if (message.type.endsWith("/refresh")) return { updated: true };
+    if (message.type.endsWith("/route_from_device")) return routeHandler(message);
     if (message.type.endsWith("/import")) return { imported: message.payload.points.length, skipped: 0 };
     throw new Error("Unknown command");
   }};
@@ -35,8 +49,170 @@ async function mount(admin = true) {
   window.document.body.append(card);
   card.hass = hass;
   await pause(250);
-  return { dom, window, card, hass, calls, setData(value) { data = value; }, close() { card.remove(); dom.window.close(); } };
+  return { dom, window, card, hass, calls, geoCalls, setData(value) { data = value; }, setGeolocation(handler) { locate = handler; }, setRouteHandler(handler) { routeHandler = handler; }, close() { card.remove(); dom.window.close(); } };
 }
+
+test("non-admin can route from device position to a map point without any zone route", async () => {
+  const fixture = await mount(false);
+  try {
+    const { card, geoCalls, calls } = fixture;
+    assert.equal(geoCalls.length, 0, "Opening the card must not request location");
+    const data = structuredClone(original);
+    const target = data.locations["zone.home"].routes[0].shelter;
+    Object.assign(data.locations["zone.home"], { nearby: [{ shelter: target, straight_distance_m: 250 }], routes: [], unrouted: [], found_count: 1 });
+    fixture.setData(data);
+    await card._load();
+    assert.ok(card.shadowRoot.querySelector(".point .device-route-button"));
+    const pointPopup = card._mapMarkers.get(target.id).getPopup().getContent();
+    pointPopup.querySelector(".device-route-button").click();
+    await pause(20);
+    const command = calls.find(call => call.type.endsWith("/route_from_device"));
+    assert.equal(command.latitude, 50.2972);
+    assert.equal(command.longitude, 18.6694);
+    assert.equal(command.point_id, target.id);
+    assert.notEqual(command.latitude, data.locations["zone.home"].origin.latitude);
+    assert.equal(geoCalls[0].enableHighAccuracy, true);
+    assert.equal(geoCalls[0].maximumAge, 0);
+    assert.equal(geoCalls[0].timeout, 20000);
+    assert.equal(card._devicePanel.hidden, false);
+    assert.match(card._devicePanel.textContent, /350 m.*5 min pieszo/);
+    assert.match(card._devicePanel.textContent, /Dokładność.*25 m/);
+    assert.match(card._devicePanel.textContent, /Położenie odczytano/);
+    assert.equal(card.shadowRoot.querySelectorAll(".device-path").length, 1);
+    assert.equal(card.shadowRoot.querySelectorAll(".device-accuracy").length, 1);
+    assert.equal(card.shadowRoot.querySelectorAll(".leaflet-marker-pane .pin").length, 3, "Home, selected shelter and this device; no duplicate target");
+    assert.ok([...card.shadowRoot.querySelectorAll(".pin")].some(pin => pin.textContent === "J"));
+    const google = new URL(card._devicePanel.querySelector("a").href);
+    const apple = new URL(card._devicePanel.querySelectorAll("a")[1].href);
+    assert.equal(google.searchParams.get("origin"), "50.2972,18.6694");
+    assert.equal(google.searchParams.get("destination"), `${target.latitude},${target.longitude}`);
+    assert.equal(google.searchParams.get("travelmode"), "walking");
+    assert.equal(apple.searchParams.get("saddr"), "50.2972,18.6694");
+    assert.equal(apple.searchParams.get("dirflg"), "w");
+    fixture.setGeolocation(success => success({ coords: { latitude: 50.2977, longitude: 18.6688, accuracy: 150 }, timestamp: Date.parse("2026-09-13T15:12:00Z") }));
+    [...card._devicePanel.querySelectorAll("button")].find(button => button.textContent === "Odśwież moją trasę").click();
+    await pause(20);
+    assert.equal(geoCalls.length, 2);
+    assert.equal(card._deviceRoute.origin.latitude, 50.2977);
+    assert.match(card._devicePanel.textContent, /mało dokładne/);
+    assert.equal(calls.filter(call => call.type.endsWith("/refresh")).length, 0);
+    [...card._devicePanel.querySelectorAll("button")].find(button => button.textContent === "Ukryj moją trasę").click();
+    assert.equal(card._deviceRoute, null);
+    assert.equal(card._devicePanel.hidden, true);
+    assert.equal(card.shadowRoot.querySelectorAll(".device-path").length, 0);
+    assert.equal(card._mapMarkers.size, 1);
+  } finally { fixture.close(); }
+});
+
+test("position and router failures keep zone points and routes and offer device navigation", async () => {
+  const fixture = await mount(false);
+  try {
+    const { card, calls, window } = fixture;
+    const shelter = original.locations["zone.home"].routes[0].shelter;
+    for (const [code, pattern] of [[1, /Brak zgody/], [2, /Włącz usługi lokalizacji/], [3, /Minął czas/]]) {
+      fixture.setGeolocation((success, error) => error({ code }));
+      await card._routeFromDevice(shelter);
+      assert.match(card._devicePanel.textContent, pattern);
+      assert.equal(card.shadowRoot.querySelectorAll(".route").length, 3);
+      assert.equal(card.shadowRoot.querySelectorAll(".device-path").length, 0);
+      const links = card._devicePanel.querySelectorAll("a");
+      assert.equal(new URL(links[0].href).searchParams.has("origin"), false);
+      assert.equal(new URL(links[1].href).searchParams.has("saddr"), false);
+      assert.equal(new URL(links[0].href).searchParams.get("destination"), `${shelter.latitude},${shelter.longitude}`);
+    }
+    window.isSecureContext = false;
+    await card._routeFromDevice(shelter);
+    assert.match(card._devicePanel.textContent, /wymaga HTTPS/);
+    window.isSecureContext = true;
+    const geolocation = window.navigator.geolocation;
+    Object.defineProperty(window.navigator, "geolocation", { value: undefined, configurable: true });
+    await card._routeFromDevice(shelter);
+    assert.match(card._devicePanel.textContent, /nie udostępnia lokalizacji/);
+    Object.defineProperty(window.navigator, "geolocation", { value: geolocation, configurable: true });
+    fixture.setGeolocation(success => success({ coords: { latitude: 91, longitude: 18.67 } }));
+    await card._routeFromDevice(shelter);
+    assert.match(card._devicePanel.textContent, /poprawnego położenia/);
+    assert.equal(calls.filter(call => call.type.endsWith("/route_from_device")).length, 0);
+    fixture.setGeolocation(success => success({ coords: { latitude: 50.2972, longitude: 18.6694, accuracy: 25 } }));
+    fixture.setRouteHandler(() => { throw { code: "route_failed", message: "HTTP 503" }; });
+    await card._routeFromDevice(shelter);
+    assert.match(card._devicePanel.textContent, /503/);
+    assert.equal(card._deviceRoute, null);
+    assert.equal(card.shadowRoot.querySelectorAll(".route").length, 3);
+    assert.equal(card.shadowRoot.querySelectorAll(".leaflet-overlay-pane svg path").length, 3);
+  } finally { fixture.close(); }
+});
+
+test("only the latest point wins; closing and disconnecting discard pending location and route", async () => {
+  const fixture = await mount();
+  try {
+    const { card, calls } = fixture;
+    const targets = original.locations["zone.home"].routes.map(route => route.shelter);
+    const positions = [];
+    const responses = [];
+    fixture.setGeolocation(success => positions.push(success));
+    fixture.setRouteHandler(message => new Promise(resolve => responses.push({ message, resolve })));
+    const position = { coords: { latitude: 50.2972, longitude: 18.6694, accuracy: 0 } };
+    const first = card._routeFromDevice(targets[0]);
+    const second = card._routeFromDevice(targets[1]);
+    positions[0](position); await first;
+    assert.equal(responses.length, 0, "Superseded GPS must not send a route request");
+    positions[1](position); await pause(0);
+    const third = card._routeFromDevice(targets[2]);
+    positions[2](position); await pause(0);
+    const reply = target => ({ origin: { id: "device", latitude: 50.2972, longitude: 18.6694 }, route: { shelter: target, distance_m: 350, duration_s: 280, geometry: { type: "LineString", coordinates: [[18.6694, 50.2972], [target.longitude, target.latitude]] }, start_gap_m: 0, end_gap_m: 0, calculated_at: "2026-09-13T15:10:01Z" } });
+    responses[1].resolve(reply(targets[2])); await third;
+    responses[0].resolve(reply(targets[1])); await second;
+    assert.equal(card._deviceRoute.route.shelter.id, targets[2].id);
+    const fourth = card._routeFromDevice(targets[0]);
+    card._devicePanel.querySelector("button").click();
+    positions[3](position); await fourth;
+    assert.equal(card._deviceRoute, null);
+    assert.equal(card._devicePanel.hidden, true);
+    const fifth = card._routeFromDevice(targets[0]);
+    positions[4](position); await pause(0);
+    card.remove();
+    responses[2].resolve(reply(targets[0])); await fifth;
+    assert.equal(card._deviceRoute, null);
+    assert.equal(card._devicePanel.hidden, true);
+    assert.equal(calls.filter(call => call.type.endsWith("/route_from_device")).length, 3);
+    fixture.window.document.body.append(card); await pause(30);
+    assert.equal(card.shadowRoot.querySelectorAll(".device-path").length, 0);
+  } finally { fixture.close(); }
+});
+
+test("two devices keep their own routes across data reloads; gaps and changed zones are explicit", async () => {
+  const first = await mount(false);
+  const second = await mount(false);
+  try {
+    const target = original.locations["zone.home"].routes[0].shelter;
+    second.setGeolocation(success => success({ coords: { latitude: 50.2992, longitude: 18.677, accuracy: 0 }, timestamp: Date.parse("2026-09-13T15:11:00Z") }));
+    first.card.shadowRoot.querySelector(".route .device-route-button").click();
+    second.card.shadowRoot.querySelector(".route .device-route-button").click();
+    await pause(20);
+    assert.equal(first.card._deviceRoute.origin.latitude, 50.2972);
+    assert.equal(second.card._deviceRoute.origin.latitude, 50.2992);
+    await first.card._load(); await second.card._load();
+    assert.equal(first.card._deviceRoute.origin.latitude, 50.2972);
+    assert.equal(second.card._deviceRoute.origin.latitude, 50.2992);
+    assert.equal(first.card.shadowRoot.querySelectorAll(".device-path").length, 1);
+    assert.equal(second.card.shadowRoot.querySelectorAll(".device-path").length, 1);
+    assert.equal(first.card._mapMarkers.size, 3);
+    second.setRouteHandler(message => ({ origin: { id: "device", latitude: message.latitude, longitude: message.longitude }, route: {
+      shelter: target, distance_m: 350, duration_s: 280, start_gap_m: 20, end_gap_m: 30, calculated_at: "2026-09-13T15:10:01Z",
+      geometry: { type: "LineString", coordinates: [[message.longitude + .0001, message.latitude], [target.longitude - .0001, target.latitude]] },
+    } }));
+    await second.card._routeFromDevice(target);
+    assert.equal(second.card.shadowRoot.querySelectorAll(".device-gap").length, 2);
+    assert.match(second.card._devicePanel.textContent, /początek 20 m, dojście do punktu 30 m/);
+    second.card._zones.value = "zone.work";
+    second.card._zones.dispatchEvent(new second.window.Event("change"));
+    assert.equal(second.card._deviceRoute, null);
+    assert.equal(second.card._devicePanel.hidden, true);
+    assert.equal(second.card.shadowRoot.querySelectorAll(".device-path").length, 0);
+    assert.equal(first.card._deviceRoute.origin.latitude, 50.2972);
+  } finally { first.close(); second.close(); }
+});
 
 test("nearby points show names and addresses without routes, paginate and switch zones", async () => {
   const fixture = await mount();

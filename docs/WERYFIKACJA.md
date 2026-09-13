@@ -1,6 +1,24 @@
-# Weryfikacja wersji 1.4.0
+# Weryfikacja wersji 1.5.0
 
-Wykonano 13.09.2026. Zakres: pełny eksport PSP, integracja, zapis lokalny, importer i karta. Nie wykonywano zmian w instalacji HA użytkownika ani pushu do jego repozytorium.
+Wykonano 13.09.2026. Zakres: trasa z bieżącej pozycji urządzenia, pełny eksport PSP, integracja, zapis lokalny, importer i karta. Nie wykonywano zmian w instalacji HA użytkownika ani pushu do jego repozytorium.
+
+## Trasa z urządzenia — wersja 1.5
+
+Nowe testy użyły rzeczywistego serwera HTTP i WebSocket HA 2026.9.2, prawdziwego uwierzytelniania i dwóch użytkowników bez praw administratora. Potwierdzono:
+
+- Żądanie bez uwierzytelnienia jest odrzucone, a zwykli zalogowani użytkownicy otrzymują trasę do wybranego punktu. Serwer pobiera cel z aktualnego zbioru po publicznym identyfikatorze.
+- Dwa jednoczesne żądania mają różne pozycje początku i otrzymują odpowiadające im geometrie. Można wskazać punkt z pełnej bazy, także poza obecnym obszarem domu.
+- Wyniki i sensory stref, encje mapy, eksport karty i zawartość pliku Store integracji pozostają identyczne po wyznaczeniu jednorazowych tras. Pozycja urządzenia nie staje się wspólną lokalizacją HA.
+- Nieprawidłowe współrzędne, wartości logiczne, brak punktu, brak wpisu i próba podania innego adresu silnika lub własnych współrzędnych celu są odrzucane. Błąd silnika HTTP 503 zwraca błąd trasy i zachowuje trasy stref.
+- Test lokalnego serwera z dwoma równoczesnymi klientami `WalkingRouter` na wspólnej sesji potwierdził odstęp co najmniej sekundy między próbami do tego samego hosta.
+
+Testy DOM rzeczywistej karty i dołączonego Leaflet potwierdziły przycisk w dymku i na liście, użycie współrzędnych przeglądarki zamiast strefy, `maximumAge: 0`, wysoką dokładność i timeout 20 s. Nie ma żądania położenia przy samym otwarciu karty. Trasa z urządzenia działa także bez gotowych tras strefy.
+
+Sprawdzono różowy przebieg SVG, marker J, dokładność i jej okrąg, czas odczytu, długość i czas dojścia, ponowny odczyt pozycji, poprawne początki i cele Google Maps / Apple Maps, osobne przerywane odcinki dojścia do sieci dróg i brak podwójnego markera celu. Odmowa dostępu, niedostępna lokalizacja, timeout, niezaufany kontekst HTTP, brak Geolocation API i awaria silnika pozostawiają punkty i trasy stref. Linki awaryjne przekazują cel i tryb pieszy, bez narzucenia strefy jako początku.
+
+Starsze odpowiedzi GPS i WebSocket po zmianie celu są ignorowane. Zamknięcie, odłączenie karty i zmiana strefy usuwają trasę urządzenia; odświeżenie danych zachowuje własny pomiar z jego czasem. Dwa widoki karty mają niezależne początki i przebiegi.
+
+Zasady odczytu pozycji sprawdzono w [dokumentacji Geolocation API](https://developer.mozilla.org/en-US/docs/Web/API/Geolocation/getCurrentPosition), uwierzytelnianie w [dokumentacji WebSocket HA](https://developers.home-assistant.io/docs/api/websocket/), a limit i logowanie żądań w [zasadach FOSSGIS](https://routing.openstreetmap.de/about.html).
 
 ## Punkty na mapie HA i lista okolicy
 
@@ -46,8 +64,10 @@ Suma SHA-256 oraz atrybucja są w `datasets/snapshot.json` i `DATA_LICENSE.md`. 
 | Element | Wynik i zakres |
 | --- | --- |
 | Home Assistant | Rzeczywisty Core 2026.9.2, Python 3.14.7 |
-| Testy Python | **51 przechodzących testów** |
-| Karta mapy | **9 przechodzących testów DOM**, jsdom 30.0.1, dołączony Leaflet 1.9.4 |
+| Testy Python | **54 przechodzące testy** |
+| Karta mapy | **13 przechodzących testów DOM**, jsdom 30.0.1, dołączony Leaflet 1.9.4 |
+| Trasa urządzenia 1.5 | Rzeczywiste uwierzytelnione WebSockety, zwykli użytkownicy, niezależne początki, niezmieniony Store i sensory, błędne dane i 503 |
+| Położenie i karta 1.5 | Odczyt na kliknięcie, wymaganie HTTPS, zgoda, błędy, wyścigi odpowiedzi, geometria i dokładność, nawigacja, ponowny odczyt i zamknięcie |
 | Pierwsze uruchomienie z błędem eksportu | Kontrolowane 403: rzeczywisty dołączony CSV z ponad 85 tys. punktów pozostaje dostępny |
 | Cała baza i wiele stref | Jeden pobrany zbiór dla dwóch odległych stref; 301 znalezionych punktów przy domu testowym i 1 w drugiej strefie; 8 sensorów |
 | Zmiana lokalizacji | Przeniesienie strefy wyszukuje w pełnym zbiorze bez nowego pobrania przed okresem odświeżania |
@@ -65,13 +85,14 @@ Suma SHA-256 oraz atrybucja są w `datasets/snapshot.json` i `DATA_LICENSE.md`. 
 
 Testy automatyczne używają rzeczywistych obiektów HA, platform i plików Store. Sieć, odpowiedzi źródła i geometrie tras są kontrolowane, aby sprawdzić błędy i przeładowania bez ruchu do publicznych usług. Wyliczanie interfejsów i mDNS hosta testowego zastąpiono atrapami. Pobranie produkcyjnego CSV było osobną, opisaną powyżej próbą.
 
-W poprzednim etapie sprawdzono prawdziwe zapytania do pieszej usługi FOSSGIS: HTTP 200 / Ok. Przy zmianie źródła danych nie powtarzano zapytań OSRM, ponieważ kod wyznaczania tras pozostał bez zmian. Podgląd `tests/browser_fixture.html` zawiera jawnie oznaczone fikcyjne punkty i geometrię wcześniejszych próbnych tras.
+W poprzednim etapie sprawdzono prawdziwe zapytania do pieszej usługi FOSSGIS: HTTP 200 / Ok. W wersji 1.5 dodano wspólną kolejkę i obsługę początku z urządzenia; parametry żądania oraz walidacja odpowiedzi OSRM pozostały zgodne z dotychczasowym klientem. Nową kolejkę sprawdzono lokalnym serwerem, a pozycje urządzeń kontrolowanymi odpowiedziami, bez powtarzania zapytań do publicznej usługi. Podgląd `tests/browser_fixture.html` zawiera jawnie oznaczone fikcyjne punkty, wcześniejsze próbne geometrie i symulację położenia oraz trasy urządzenia; nie odczytuje prawdziwej pozycji odwiedzającego.
 
 ## Granice weryfikacji
 
 - Nie sprawdzono połączenia z hosta HA użytkownika. Udane pobranie w środowisku testowym nie gwarantuje dostępu z każdego adresu IP; pełna dołączona baza jest dostępna także wtedy, gdy pobranie się nie powiedzie.
 - Nie potwierdzono opublikowania plików na GitHubie ani wyniku zdalnego walidatora HACS. Workflowy i metadane są gotowe dla repozytorium CyberGuard-PS/ha-gdzie-sie-ukryc.
 - Testy DOM sprawdzają zawartość i geometrie SVG, bez wizualnej oceny panelu HA lub aplikacji iOS.
+- Nie wykonano odczytu rzeczywistej pozycji telefonu w Safari ani widoku Companion. Testy kontrolują Geolocation API; dostęp na urządzeniu wymaga odpowiedniego kontekstu, zgody dla strony lub aplikacji i systemowych usług lokalizacji.
 - Nie potwierdzono dostępności obiektów, wejść ani bezpieczeństwa dojścia w terenie. Zbiór opisuje punkty schronienia, nie wyłącznie formalne schrony.
 - Zapis punktów i tras nie zapewnia kafelkowego podkładu offline.
 

@@ -7,11 +7,22 @@ import json
 from datetime import datetime, timezone
 from math import isfinite
 from urllib.parse import urlparse
+from weakref import WeakKeyDictionary
 
 import aiohttp
 
 from .const import MAX_BYTES, SNAP_RADIUS_METERS
 from .models import Origin, Shelter, coordinate, distance_m
+
+
+class _RoutingLimit:
+    def __init__(self):
+        self.lock = asyncio.Lock()
+        self.next_request_at = 0.0
+
+
+# The shared HA session also shares the public router's one-request-per-second limit.
+_ROUTING_LIMITS: WeakKeyDictionary = WeakKeyDictionary()
 
 
 class SourceError(Exception):
@@ -67,20 +78,28 @@ class WalkingRouter(JsonClient):
     def __init__(self, session: aiohttp.ClientSession, base_url: str):
         super().__init__(session)
         self.base_url = validate_url(base_url)
+        limits = _ROUTING_LIMITS.setdefault(session, {})
+        self._limit = limits.setdefault(urlparse(self.base_url).netloc, _RoutingLimit())
 
     async def route(self, origin: Origin, shelter: Shelter, straight_distance: float) -> dict:
         coordinates = f"{origin.longitude:.7f},{origin.latitude:.7f};{shelter.longitude:.7f},{shelter.latitude:.7f}"
-        payload = await self.get(
-            f"{self.base_url}/{coordinates}",
-            {
-                "overview": "simplified",
-                "geometries": "geojson",
-                "steps": "false",
-                "alternatives": "false",
-                "radiuses": f"{SNAP_RADIUS_METERS};{SNAP_RADIUS_METERS}",
-            },
-            route_response=True,
-        )
+        async with self._limit.lock:
+            loop = asyncio.get_running_loop()
+            delay = self._limit.next_request_at - loop.time()
+            if delay > 0:
+                await asyncio.sleep(delay)
+            self._limit.next_request_at = loop.time() + 1.05
+            payload = await self.get(
+                f"{self.base_url}/{coordinates}",
+                {
+                    "overview": "simplified",
+                    "geometries": "geojson",
+                    "steps": "false",
+                    "alternatives": "false",
+                    "radiuses": f"{SNAP_RADIUS_METERS};{SNAP_RADIUS_METERS}",
+                },
+                route_response=True,
+            )
         return parse_route(payload, origin, shelter, straight_distance)
 
 

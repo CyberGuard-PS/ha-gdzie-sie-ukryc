@@ -3,5 +3,5 @@
 lovelace:
   resource_mode: yaml
   resources:
-    - url: /gdzie_sie_ukryc/frontend/gdzie-sie-ukryc-card.js?v=1.4.0
+    - url: /gdzie_sie_ukryc/frontend/gdzie-sie-ukryc-card.js?v=1.5.0
       type: module

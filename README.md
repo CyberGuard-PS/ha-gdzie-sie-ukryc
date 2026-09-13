@@ -1,6 +1,6 @@
-# Gdzie się ukryć — Home Assistant 1.4.0
+# Gdzie się ukryć — Home Assistant 1.5.0
 
-Mapa tras pieszych z domu (`zone.home`) i dodatkowych stref do pobliskich punktów schronienia. Domyślnie: promień 5 km, 3 trasy z 12 kandydatów, odświeżanie co 24 godziny.
+Mapa tras pieszych z domu (`zone.home`), dodatkowych stref i bieżącego położenia urządzenia do wybranego punktu schronienia. Domyślnie: promień 5 km, 3 trasy z 12 kandydatów, odświeżanie co 24 godziny. Przycisk **Trasa z mojej lokalizacji** odczytuje położenie telefonu, tabletu lub komputera używanego do otwarcia karty.
 
 **Integracja pobiera automatycznie całą opublikowaną bazę PSP**, korzystając z [oficjalnego eksportu CSV](https://gdziesieukryc.pl/PS_XML/punkty_schronienia.csv) wskazanego w [katalogu dane.gov.pl](https://dane.gov.pl/pl/dataset/28058,punkty-schronienia-w-polsce). Nie wymaga klucza API ani importowania HAR. Jeden plik obsługuje wszystkie strefy; wyszukiwanie w promieniu odbywa się lokalnie, bez limitu 250 wyników.
 
@@ -10,7 +10,7 @@ To automatyczne pobieranie aktualnego **eksportu**, a nie natychmiastowa synchro
 
 [Zgłoszenia błędów](https://github.com/CyberGuard-PS/ha-gdzie-sie-ukryc/issues) · [Historia zmian](CHANGELOG.md) · [Publikacja i aktualizacja GitHub](docs/PUBLIKACJA_GITHUB.md) · [Weryfikacja](docs/WERYFIKACJA.md)
 
-## Aktualizacja z 1.0 / 1.1 / 1.2 / 1.3
+## Aktualizacja z 1.0 / 1.1 / 1.2 / 1.3 / 1.4
 
 1. Zaktualizuj przez HACS albo zastąp **cały** katalog `/config/custom_components/gdzie_sie_ukryc` katalogiem z paczki. Musi zawierać również `datasets/psp-punkty.csv` i `datasets/snapshot.json`.
 2. Uruchom ponownie Home Assistant.
@@ -20,7 +20,7 @@ To automatyczne pobieranie aktualnego **eksportu**, a nie natychmiastowa synchro
 
 Wpis korzystający ze starego trybu PSP jest migrowany automatycznie do pełnego CSV. Import, plik lokalny i własny URL zachowują dotychczasowy wybór; w tych przypadkach przełącz źródło ręcznie. Nie trzeba usuwać wpisu integracji. Stary zapis 250 punktów nie jest używany jako pełna baza Polski.
 
-W zasobach Lovelace zarządzanych przez UI adres karty aktualizuje się automatycznie. Przy zasobach YAML ustaw wersję URL na `v=1.4.0`, jak poniżej. Jeśli aktualizujesz z wersji używającej `/local/gdzie-sie-ukryc/`, zmień także ścieżkę zasobu.
+W zasobach Lovelace zarządzanych przez UI adres karty aktualizuje się automatycznie. Przy zasobach YAML ustaw wersję URL na `v=1.5.0`, jak poniżej. Jeśli aktualizujesz z wersji używającej `/local/gdzie-sie-ukryc/`, zmień także ścieżkę zasobu.
 
 ## Instalacja przez HACS
 
@@ -47,7 +47,7 @@ Gdy zasoby są utrzymywane w YAML, połącz poniższy fragment z istniejącą se
 lovelace:
   resource_mode: yaml
   resources:
-    - url: /gdzie_sie_ukryc/frontend/gdzie-sie-ukryc-card.js?v=1.4.0
+    - url: /gdzie_sie_ukryc/frontend/gdzie-sie-ukryc-card.js?v=1.5.0
       type: module
 ```
 
@@ -80,6 +80,20 @@ We własnej karcie `custom:gdzie-sie-ukryc-card` dostępne są punkty **oraz geo
 Dla encji `geo_location` stan w kilometrach oznacza odległość od lokalizacji domu HA, zgodnie z kontraktem tej platformy. Dodatkowe atrybuty `nearest_zone`, `zone_ids` i `distance_to_zone_m` opisują wybrane strefy. W liście na karcie odległość jest liczona od aktualnie wybranej strefy.
 
 Wbudowana mapa HA pokazuje markery encji. Geometrie pieszych tras i listę adresów udostępnia własna karta integracji.
+
+## Trasa z aktualnej lokalizacji urządzenia
+
+We własnej karcie **`custom:gdzie-sie-ukryc-card`** wybierz **Trasa z mojej lokalizacji** przy punkcie na liście, przy gotowej trasie albo w dymku markera. Zezwól przeglądarce lub aplikacji na odczyt położenia. Integracja wyznaczy jedną trasę pieszą od odczytanej pozycji do wskazanego punktu, także gdy nie udało się wcześniej obliczyć tras ze strefy.
+
+Trasa z urządzenia jest różowa, a marker **J** oznacza odczytaną pozycję. Panel pokazuje nazwę i adres celu, długość trasy, czas dojścia, czas odczytu położenia i zgłoszoną dokładność. **Odśwież moją trasę** odczytuje położenie ponownie; **Ukryj moją trasę** usuwa ten widok. Google Maps i Apple Maps w tym panelu otrzymują odczytany punkt startowy oraz wybrany cel i obliczają własną trasę pieszą.
+
+**W przeglądarce otwórz HA przez HTTPS i udziel zgody na lokalizację.** Adres `http://homeassistant.local:8123` lub zwykły HTTP z lokalnym IP zazwyczaj blokuje odczyt położenia. Karta pokaże przyczynę oraz linki do nawigacji zewnętrznej, która może użyć pozycji urządzenia we własnej aplikacji. Wymagania opisuje [dokumentacja Geolocation API](https://developer.mozilla.org/en-US/docs/Web/API/Geolocation/getCurrentPosition).
+
+Położenie jest pobierane tylko po naciśnięciu przycisku. Każda karta i każde urządzenie mają własną trasę w pamięci widoku; integracja nie zapisuje pozycji urządzenia ani tej trasy w Store HA, sensorach czy encjach mapy. Współrzędne są przekazywane przez uwierzytelniony WebSocket do HA, a następnie do wybranego w opcjach silnika tras. Dostawca silnika może zapisywać zapytania w swoich logach; opis domyślnej usługi: [FOSSGIS](https://routing.openstreetmap.de/about.html). Wyznaczenie własnej trasy jest dostępne także dla zalogowanych użytkowników bez praw administratora.
+
+Lista okolicy nadal wynika z wybranej strefy HA i promienia. Zmiana strefy zamyka trasę urządzenia. Odświeżenie danych źródła zachowuje ją z czasem poprzedniego odczytu położenia. Nie ma ciągłego śledzenia ani automatycznego przeliczania podczas przemieszczania się. Wbudowana mapa HA pokazuje encje punktów; przycisk pobierający pozycję urządzenia znajduje się we własnej karcie integracji.
+
+Instrukcja i rozwiązywanie problemów: [docs/TRASA_Z_URZADZENIA.md](docs/TRASA_Z_URZADZENIA.md).
 
 ## Dom i inne lokalizacje
 
@@ -171,7 +185,7 @@ Domyślny silnik to publiczna usługa demonstracyjna FOSSGIS:
 https://routing.openstreetmap.de/routed-foot/route/v1/foot
 ```
 
-Zapytania tras są wykonywane kolejno z odstępem około sekundy. Pierwsze uruchomienie może potrwać kilkanaście sekund lub dłużej, zwłaszcza przy kilku strefach. Możesz podać własny serwer OSRM z danymi przygotowanymi profilem pieszym; zmiana samego słowa w URL nie zmienia profilu danych serwera.
+Zapytania tras są wykonywane kolejno z odstępem około sekundy. Limit dla tego samego hosta obejmuje zarówno trasy stref, jak i jednorazowe trasy urządzeń korzystających ze wspólnej sesji HA. Pierwsze uruchomienie może potrwać kilkanaście sekund lub dłużej, zwłaszcza przy kilku strefach. Możesz podać własny serwer OSRM z danymi przygotowanymi profilem pieszym; zmiana samego słowa w URL nie zmienia profilu danych serwera.
 
 Brak poprawnej trasy nie jest zastępowany linią prostą podpisaną jako trasa piesza. Zapisana poprawna trasa może być wyświetlana z datą i linią przerywaną. OSRM dopasowuje końce do sieci w promieniu do 100 m; większe odstępy od pinów są oznaczone szarą linią przerywaną. Długość i ETA nie obejmują tych niepotwierdzonych połączeń. Pin obiektu nie musi wskazywać wejścia.
 
@@ -198,13 +212,16 @@ Geometrie nie są atrybutami sensorów. Jest też przycisk **Odśwież punkty i 
 
 | Objaw | Co sprawdzić |
 | --- | --- |
-| Wciąż `HTTP 403` ze starego źródła | Wersja 1.4.0, restart i źródło **Cała baza PSP — automatyczny eksport CSV** |
+| Wciąż `HTTP 403` ze starego źródła | Wersja 1.5.0, restart i źródło **Cała baza PSP — automatyczny eksport CSV** |
 | `cached` i błąd eksportu | Sprawdź `dataset_points`; pełna zapisana/dołączona baza pozostaje dostępna. Po przywróceniu połączenia użyj Odśwież |
 | Brak punktów przy bazie 85 tys. | Współrzędne `zone.home`, wybraną strefę i promień |
 | Brak `datasets/psp-punkty.csv` | Skopiuj kompletny katalog integracji z paczki |
-| Dane są, brak punktów w zakładce Mapa | Wersję 1.4.0, restart HA oraz encje `geo_location` w Narzędziach deweloperskich; własna karta pokazuje też listę adresów |
+| Dane są, brak punktów w zakładce Mapa | Wersję 1.5.0, restart HA oraz encje `geo_location` w Narzędziach deweloperskich; własna karta pokazuje też listę adresów |
 | Punkty znalezione, brak tras | Dostęp HA do silnika pieszych tras i komunikat błędu tras |
-| `Custom element doesn't exist` | Zasób modułu z `v=1.4.0` i ponowne wczytanie aplikacji |
+| Brak przycisku Trasa z mojej lokalizacji | Własna karta `custom:gdzie-sie-ukryc-card`, aktualizacja 1.5.0 i ponowne wczytanie panelu |
+| Lokalizacja wymaga HTTPS | Otwórz HA przez HTTPS albo użyj linku nawigacji zewnętrznej w komunikacie |
+| Brak zgody / timeout położenia | Zgoda dla strony lub aplikacji, systemowe usługi lokalizacji i ponowna próba |
+| `Custom element doesn't exist` | Zasób modułu z `v=1.5.0` i ponowne wczytanie aplikacji |
 | Brak Leaflet | Cały katalog `frontend/vendor/` |
 | Pusty podkład | Dostęp przeglądarki do kafelków; podkład i trasy są niezależne |
 

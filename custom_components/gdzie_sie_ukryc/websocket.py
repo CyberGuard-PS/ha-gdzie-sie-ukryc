@@ -6,13 +6,14 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import callback
 
+from .api import SourceError
 from .const import DOMAIN, MAX_BYTES
 from .data import PayloadError
 
 
 @callback
 def async_register_commands(hass):
-    for command in (websocket_list, websocket_data, websocket_import, websocket_refresh):
+    for command in (websocket_list, websocket_data, websocket_import, websocket_refresh, websocket_route_from_device):
         websocket_api.async_register_command(hass, command)
 
 
@@ -21,6 +22,32 @@ def _coordinator(hass, msg):
     if coordinator is None:
         raise PayloadError("Integracja nie jest załadowana")
     return coordinator
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/route_from_device",
+        vol.Required("entry_id"): str,
+        vol.Required("point_id"): vol.All(str, vol.Length(min=1, max=200)),
+        vol.Required("latitude"): vol.Any(int, float),
+        vol.Required("longitude"): vol.Any(int, float),
+    }
+)
+@websocket_api.async_response
+async def websocket_route_from_device(hass, connection, msg):
+    """Any authenticated dashboard user can route from their own device."""
+    try:
+        coordinator = _coordinator(hass, msg)
+    except PayloadError as err:
+        connection.send_error(msg["id"], "not_loaded", str(err))
+        return
+    try:
+        result = await coordinator.async_route_from_device(msg["point_id"], msg["latitude"], msg["longitude"])
+        connection.send_result(msg["id"], result)
+    except PayloadError as err:
+        connection.send_error(msg["id"], "invalid_route_request", str(err))
+    except SourceError as err:
+        connection.send_error(msg["id"], "route_failed", str(err))
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/list"})

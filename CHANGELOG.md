@@ -1,5 +1,15 @@
 # Historia zmian
 
+## 1.5.0 — 2026-09-13
+
+- Przycisk **Trasa z mojej lokalizacji** przy punktach listy, gotowych trasach i w dymkach markerów. Po kliknięciu karta odczytuje bieżące położenie urządzenia z wysoką dokładnością, bez akceptowania pozycji z cache.
+- Jednorazowa trasa piesza do publicznego identyfikatora punktu przez uwierzytelniony WebSocket HA i skonfigurowany silnik tras. Dostępna także dla zwykłych zalogowanych użytkowników.
+- Osobny różowy przebieg, marker aktualnej pozycji, długość i czas dojścia, czas odczytu i dokładność. Przyciski ponownego odczytu położenia, przybliżenia i ukrycia trasy; nawigacja Google Maps / Apple Maps z odczytanej pozycji.
+- Czytelne komunikaty o HTTPS, odmowie dostępu, niedostępnym położeniu, timeout i awarii silnika. Nawigacja zewnętrzna może ustalić początek na swoim urządzeniu.
+- Pozycja i trasa urządzenia pozostają w pamięci jego karty; nie zmieniają zapisu stref, Store, sensorów i encji punktów. Starsze odpowiedzi po zmianie celu, zamknięciu lub odłączeniu karty są ignorowane.
+- Wspólny limit żądań silnika tras dla stref, urządzeń i wpisów korzystających z tej samej sesji HA i hosta. Zachowany odstęp co najmniej sekundy.
+- Pełna opublikowana baza 85 739 punktów PSP, encje mapy, nazwy, adresy oraz dotychczasowe źródła są nadal dołączone.
+
 ## 1.4.0 — 2026-09-13
 
 - Pobliskie punkty jako encje `geo_location`, widoczne we wbudowanej mapie HA wraz z nazwą i adresem.

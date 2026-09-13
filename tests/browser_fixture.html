@@ -8,10 +8,17 @@ const original=await(await fetch('./browser_data.json')).json();
 let data=structuredClone(original);
 let revision=0;
 const card=document.createElement('gdzie-sie-ukryc-card');
+document.querySelector('.test').append(document.createElement('br'),document.createTextNode('Położenie urządzenia i trasa z niego w tym podglądzie są symulowane. Nie udostępniaj położenia ani nie używaj tych danych do nawigacji.'));
+card._getDevicePosition=async()=>({latitude:50.2972,longitude:18.6694,accuracy_m:25,located_at:new Date().toISOString()});
 const hass={user:{is_admin:true},states:{},async callWS(message){
  if(message.type.endsWith('/list'))return[{entry_id:'test',title:'Test'}];
  if(message.type.endsWith('/data'))return structuredClone(data);
  if(message.type.endsWith('/refresh'))return{updated:true};
+ if(message.type.endsWith('/route_from_device')){
+  const shelter=Object.values(data.locations).flatMap(location=>location.routes).find(route=>route.shelter.id===message.point_id)?.shelter;
+  if(!shelter)throw new Error('Brak punktu w symulowanych danych testowych');
+  return{origin:{id:'device',name:'Symulowane położenie urządzenia',latitude:message.latitude,longitude:message.longitude},route:{shelter,mode:'foot',status:'fresh',distance_m:350,duration_s:280,start_gap_m:0,end_gap_m:0,calculated_at:new Date().toISOString(),geometry:{type:'LineString',coordinates:[[message.longitude,message.latitude],[(message.longitude+shelter.longitude)/2,(message.latitude+shelter.latitude)/2+.0004],[shelter.longitude,shelter.latitude]]}}};
+ }
  if(message.type.endsWith('/import'))return{imported:message.payload.points?.length??0,skipped:0};
  throw new Error('Unknown command');
 }};

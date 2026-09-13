@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -115,6 +116,31 @@ async def test_http_client_and_router_handle_403_html_and_no_route():
                 await WalkingRouter(session, f"{base}/missing").route(HOME, PS, 263)
             route = await WalkingRouter(session, f"{base}/foot").route(HOME, PS, 263)
             assert route["distance_m"] == 325
+    finally:
+        await runner.cleanup()
+
+
+async def test_simultaneous_zone_and_device_routes_share_the_router_rate_limit():
+    arrivals = []
+
+    async def response(request):
+        arrivals.append(asyncio.get_running_loop().time())
+        return web.json_response(payload())
+
+    app = web.Application()
+    app.router.add_get("/{tail:.*}", response)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "127.0.0.1", 0)
+    await site.start()
+    port = site._server.sockets[0].getsockname()[1]
+    try:
+        async with ClientSession() as session:
+            first = WalkingRouter(session, f"http://127.0.0.1:{port}/first")
+            second = WalkingRouter(session, f"http://127.0.0.1:{port}/second")
+            routes = await asyncio.gather(first.route(HOME, PS, 263), second.route(HOME, PS, 263))
+            assert len(routes) == 2 and len(arrivals) == 2
+            assert arrivals[1] - arrivals[0] >= 1
     finally:
         await runner.cleanup()
 
