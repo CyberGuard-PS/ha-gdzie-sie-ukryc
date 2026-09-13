@@ -10,7 +10,7 @@ from .coordinator import ShelterCoordinator
 from .panel import async_register_card_resource, async_register_frontend, async_remove_card_resource
 from .websocket import async_register_commands
 
-PLATFORMS = [Platform.SENSOR, Platform.BUTTON]
+PLATFORMS = [Platform.SENSOR, Platform.BUTTON, Platform.GEO_LOCATION]
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:

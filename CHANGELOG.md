@@ -1,5 +1,15 @@
 # Historia zmian
 
+## 1.4.0 — 2026-09-13
+
+- Pobliskie punkty jako encje `geo_location`, widoczne we wbudowanej mapie HA wraz z nazwą i adresem.
+- Własna karta rysuje punkty również wtedy, gdy silnik tras nie odpowiada.
+- Lista punktów w okolicy: nazwy, adresy, odległość w linii prostej, dostępność i nawigacja Apple / Google.
+- Domyślnie 100 punktów na mapie i liście na strefę; nowa opcja z zakresem 30–500, niezależna od liczby kandydatów do tras.
+- Punkty wspólne dla kilku stref mają jedną encję; zmiana obszaru usuwa nieaktualne punkty mapy i ich rejestracje.
+- Nazwy i adresy w dymkach oraz przycisk Pokaż punkt; lista rozwijana po 20 pozycji.
+- Zachowanie oryginalnych bajtów CSV w Git, aby normalizacja końców linii nie zmieniała sumy kontrolnej dołączonej bazy.
+
 ## 1.3.0 — 2026-09-13
 
 - Domyślne automatyczne pobieranie pełnego, oficjalnie opublikowanego eksportu CSV PSP.

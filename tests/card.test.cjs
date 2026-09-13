@@ -38,6 +38,81 @@ async function mount(admin = true) {
   return { dom, window, card, hass, calls, setData(value) { data = value; }, close() { card.remove(); dom.window.close(); } };
 }
 
+test("nearby points show names and addresses without routes, paginate and switch zones", async () => {
+  const fixture = await mount();
+  try {
+    const data = structuredClone(original);
+    data.source_mode = "open_data";
+    const points = Array.from({ length: 45 }, (_, index) => ({
+      shelter: { id: `TEST-NEAR-${index}`, name: `DANE TESTOWE — punkt ${index}`, address: `Fikcyjna ${index}, Miasto Testowe`, latitude: 50.3 + index * .00001, longitude: 18.67, category: "DANE TESTOWE", availability: "Nie dotyczy" },
+      straight_distance_m: index * 2,
+    }));
+    points[0].shelter.name = '<img id="injected-name" src=x onerror="alert(1)">';
+    points[0].shelter.address = '<svg id="injected-address" onload="alert(1)"></svg>';
+    Object.assign(data.locations["zone.home"], { nearby: points, nearby_truncated: true, nearby_limit: 100, found_count: 200, routes: [], unrouted: points.slice(0, 2), routing_error: "HTTP 503" });
+    Object.assign(data.locations["zone.work"], { nearby: points.slice(0, 2).map(point => ({ ...point, shelter: { ...point.shelter, latitude: 52.2, longitude: 21 } })), found_count: 2, routes: [], unrouted: [] });
+    fixture.setData(data);
+    await fixture.card._load();
+    const { card, window } = fixture;
+    assert.equal(card.shadowRoot.querySelectorAll(".route").length, 0);
+    assert.equal(card.shadowRoot.querySelectorAll(".point").length, 20);
+    assert.equal(card._mapMarkers.size, 45);
+    assert.equal(card.shadowRoot.querySelectorAll(".leaflet-marker-pane .pin").length, 46);
+    assert.equal(card.shadowRoot.querySelectorAll(".leaflet-overlay-pane svg path").length, 0);
+    assert.match(card._status.textContent, /45 punktów na mapie/);
+    assert.match(card._pointsList.textContent, /200 punktów w promieniu/);
+    assert.equal(card.shadowRoot.querySelector(".point h3").textContent, points[0].shelter.name);
+    assert.equal(card.shadowRoot.querySelector(".point-address").textContent, points[0].shelter.address);
+    assert.equal(card.shadowRoot.querySelector("#injected-name"), null);
+    assert.equal(card.shadowRoot.querySelector("#injected-address"), null);
+    card.shadowRoot.querySelector(".point .actions button").click();
+    assert.equal(card._focusedPoint, "TEST-NEAR-0");
+    assert.equal(card._map.getZoom(), 17);
+    const popup = card._mapMarkers.get("TEST-NEAR-0").getPopup().getContent();
+    assert.equal(popup.querySelector("strong").textContent, points[0].shelter.name);
+    assert.equal(popup.querySelector("p").textContent, points[0].shelter.address);
+    assert.equal(popup.querySelector("#injected-name"), null);
+    const tooltip = card._mapMarkers.get("TEST-NEAR-0").getTooltip().getContent();
+    assert.equal(tooltip.textContent, `${points[0].shelter.name} — ${points[0].shelter.address}`);
+    const google = new URL(card.shadowRoot.querySelector(".point .actions a").href);
+    assert.equal(google.searchParams.get("travelmode"), "walking");
+    assert.equal(google.searchParams.get("destination"), "50.3,18.67");
+    card.shadowRoot.querySelector(".more-points").click();
+    assert.equal(card.shadowRoot.querySelectorAll(".point").length, 40);
+    card.shadowRoot.querySelector(".more-points").click();
+    assert.equal(card.shadowRoot.querySelectorAll(".point").length, 45);
+    assert.equal(card.shadowRoot.querySelector(".more-points"), null);
+    card._fit.click();
+    assert.equal(card._focusedPoint, null);
+    const select = card.shadowRoot.querySelector("select");
+    select.value = "zone.work";
+    select.dispatchEvent(new window.Event("change"));
+    assert.equal(card._nearbyVisible, 20);
+    assert.equal(card._mapMarkers.size, 2);
+    assert.equal(card.shadowRoot.querySelectorAll(".point").length, 2);
+  } finally { fixture.close(); }
+});
+
+test("routed points share markers with the nearby list and still draw walking geometry", async () => {
+  const fixture = await mount();
+  try {
+    const data = structuredClone(original);
+    const location = data.locations["zone.home"];
+    location.nearby = [...location.routes, ...Array.from({ length: 5 }, (_, index) => ({
+      shelter: { id: `TEST-EXTRA-${index}`, name: `DANE TESTOWE ${index}`, address: `Fikcyjna ${index}`, latitude: 50.3, longitude: 18.67 },
+      straight_distance_m: 500 + index,
+    }))];
+    location.found_count = 8;
+    fixture.setData(data);
+    await fixture.card._load();
+    assert.equal(fixture.card._mapMarkers.size, 8);
+    assert.equal(fixture.card.shadowRoot.querySelectorAll(".leaflet-marker-pane .pin").length, 9);
+    assert.equal(fixture.card.shadowRoot.querySelectorAll(".leaflet-overlay-pane svg path").length, 3);
+    assert.equal(fixture.card.shadowRoot.querySelectorAll(".route").length, 3);
+    assert.equal(fixture.card.shadowRoot.querySelectorAll(".point").length, 8);
+  } finally { fixture.close(); }
+});
+
 test("national CSV mode shows full coverage, attribution and bundled fallback", async () => {
   const fixture = await mount();
   try {
@@ -83,7 +158,7 @@ test("card draws real route geometries, switches zones and resets selected route
     assert.equal(card.shadowRoot.querySelectorAll(".route").length, 2);
     card.shadowRoot.querySelector(".actions button").click();
     assert.ok(card._selected);
-    [...card.shadowRoot.querySelectorAll("button")].find(button => button.textContent === "Pokaż wszystkie trasy").click();
+    [...card.shadowRoot.querySelectorAll("button")].find(button => button.textContent === "Pokaż wszystkie punkty i trasy").click();
     assert.equal(card._selected, null);
     const google = new URL(card.shadowRoot.querySelector(".actions a").href);
     assert.equal(google.searchParams.get("travelmode"), "walking");

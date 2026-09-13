@@ -2,9 +2,9 @@
 
 Paczka jest przygotowana dla **[CyberGuard-PS/ha-gdzie-sie-ukryc](https://github.com/CyberGuard-PS/ha-gdzie-sie-ukryc)**. Zawiera pełne źródła, integrację, kartę, licencje, pełną bazę CSV, pełny JSON, testy i GitHub Actions. Na GitHubie `hacs.json`, `README.md` i `custom_components` mają znajdować się w głównym katalogu repozytorium.
 
-## Aktualizacja istniejącego repozytorium do 1.3.0
+## Aktualizacja istniejącego repozytorium do 1.4.0
 
-1. Otwórz swój dotychczasowy lokalny katalog repozytorium. Najpierw pobierz zmiany z GitHuba:
+1. Otwórz swój sklonowany lokalny katalog repozytorium, np. `~/Downloads/ha-gdzie-sie-ukryc-git`. Rozpakowany ZIP nie zawiera `.git`; jeśli pracujesz tylko w takim katalogu, najpierw wykonaj kroki **Nowy checkout** poniżej. Najpierw pobierz zmiany z GitHuba:
 
 ```bash
 git pull --no-rebase origin main
@@ -16,7 +16,7 @@ git pull --no-rebase origin main
 ```bash
 python3 tools/check_repository.py
 git add .
-git commit -m "Update 1.3.0: complete PSP dataset"
+git commit -m "Update 1.4.0: complete PSP dataset"
 git push origin main
 ```
 
@@ -33,7 +33,13 @@ git clone https://github.com/CyberGuard-PS/ha-gdzie-sie-ukryc.git
 cd ha-gdzie-sie-ukryc
 ```
 
-Następnie skopiuj zawartość ZIP do tego katalogu i wykonaj check, commit oraz push jak powyżej. Dzięki temu uwzględnisz historię już istniejącą na GitHubie.
+Następnie rozpakuj zawartość ZIP bezpośrednio do tego sklonowanego katalogu i wykonaj check, commit oraz push jak powyżej. Jeśli ZIP jest w Pobrane, możesz użyć:
+
+```bash
+unzip -o ~/Downloads/ha-gdzie-sie-ukryc-github-1.4.0.zip -d .
+```
+
+Wszystkie polecenia Git wykonuj w sklonowanym katalogu zawierającym `.git`. Dzięki temu uwzględnisz historię już istniejącą na GitHubie.
 
 ## Tożsamość i uwierzytelnienie Git
 
@@ -57,12 +63,12 @@ Nie wpisuj tokenu do adresu zdalnego repozytorium ani plików projektu.
 
 Po pushu sprawdź **Actions**: testy kodu i oficjalny walidator HACS. Repozytorium dla HACS powinno być publiczne, mieć opis, włączone Issues oraz tematy, np. `home-assistant`, `hacs`, `custom-integration`, `poland`, `shelter`, `lovelace`.
 
-Gdy testy przejdą, wybierz **Releases → Draft a new release**, utwórz i opublikuj tag **`v1.3.0`** na `main`. Historia zmian jest w `CHANGELOG.md`. Workflow wydania dołączy `gdzie_sie_ukryc.zip` z całym katalogiem integracji, w tym pełną bazą CSV i licencjami.
+Gdy testy przejdą, wybierz **Releases → Draft a new release**, utwórz i opublikuj tag **`v1.4.0`** na `main`. Historia zmian jest w `CHANGELOG.md`. Workflow wydania dołączy `gdzie_sie_ukryc.zip` z całym katalogiem integracji, w tym pełną bazą CSV i licencjami.
 
 Lokalne zbudowanie paczki instalacyjnej:
 
 ```bash
-python3 tools/build_release.py --tag v1.3.0
+python3 tools/build_release.py --tag v1.4.0
 ```
 
 Wynik: `dist/gdzie_sie_ukryc.zip`. Nie commituj `dist`. HACS pobiera katalog integracji ze źródeł wydania; nie trzeba ustawiać `zip_release`.

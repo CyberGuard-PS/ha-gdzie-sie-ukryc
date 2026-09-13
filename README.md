@@ -1,8 +1,8 @@
-# Gdzie się ukryć — Home Assistant 1.3.0
+# Gdzie się ukryć — Home Assistant 1.4.0
 
 Mapa tras pieszych z domu (`zone.home`) i dodatkowych stref do pobliskich punktów schronienia. Domyślnie: promień 5 km, 3 trasy z 12 kandydatów, odświeżanie co 24 godziny.
 
-**Wersja 1.3 pobiera automatycznie całą opublikowaną bazę PSP**, korzystając z [oficjalnego eksportu CSV](https://gdziesieukryc.pl/PS_XML/punkty_schronienia.csv) wskazanego w [katalogu dane.gov.pl](https://dane.gov.pl/pl/dataset/28058,punkty-schronienia-w-polsce). Nie wymaga klucza API ani importowania HAR. Jeden plik obsługuje wszystkie strefy; wyszukiwanie w promieniu odbywa się lokalnie, bez limitu 250 wyników.
+**Integracja pobiera automatycznie całą opublikowaną bazę PSP**, korzystając z [oficjalnego eksportu CSV](https://gdziesieukryc.pl/PS_XML/punkty_schronienia.csv) wskazanego w [katalogu dane.gov.pl](https://dane.gov.pl/pl/dataset/28058,punkty-schronienia-w-polsce). Nie wymaga klucza API ani importowania HAR. Jeden plik obsługuje wszystkie strefy; wyszukiwanie w promieniu odbywa się lokalnie, bez limitu 250 wyników.
 
 Dołączona baza pobrana 13.09.2026 zawiera **85 739 poprawnych, unikalnych punktów**. Jest używana również przy pierwszym uruchomieniu, jeśli pobieranie się nie powiedzie. Ostatnia pełna pobrana baza i trasy przetrwają restart HA.
 
@@ -10,16 +10,17 @@ To automatyczne pobieranie aktualnego **eksportu**, a nie natychmiastowa synchro
 
 [Zgłoszenia błędów](https://github.com/CyberGuard-PS/ha-gdzie-sie-ukryc/issues) · [Historia zmian](CHANGELOG.md) · [Publikacja i aktualizacja GitHub](docs/PUBLIKACJA_GITHUB.md) · [Weryfikacja](docs/WERYFIKACJA.md)
 
-## Aktualizacja z 1.0 / 1.1 / 1.2 i naprawa błędu 403
+## Aktualizacja z 1.0 / 1.1 / 1.2 / 1.3
 
 1. Zaktualizuj przez HACS albo zastąp **cały** katalog `/config/custom_components/gdzie_sie_ukryc` katalogiem z paczki. Musi zawierać również `datasets/psp-punkty.csv` i `datasets/snapshot.json`.
 2. Uruchom ponownie Home Assistant.
 3. W **Ustawienia → Urządzenia i usługi → Gdzie się ukryć → opcje** wybierz źródło **Cała baza PSP — automatyczny eksport CSV**. Pozostaw wybrane strefy i swój promień, np. 50 km.
-4. Ponownie wczytaj panel lub aplikację HA i kliknij **Odśwież** na karcie.
+4. Ponownie wczytaj panel lub aplikację HA. Wbudowana zakładka **Mapa** pokaże pobliskie punkty. Własna karta poniżej udostępnia także trasy i listę nazw oraz adresów.
+5. W opcjach jest nowe pole **Liczba punktów na mapie i liście (na strefę)**. Domyślnie pokazuje 100 najbliższych punktów w Twoim promieniu; zakres 30–500. Pobierana baza i licznik punktów w promieniu pozostają pełne.
 
 Wpis korzystający ze starego trybu PSP jest migrowany automatycznie do pełnego CSV. Import, plik lokalny i własny URL zachowują dotychczasowy wybór; w tych przypadkach przełącz źródło ręcznie. Nie trzeba usuwać wpisu integracji. Stary zapis 250 punktów nie jest używany jako pełna baza Polski.
 
-W zasobach Lovelace zarządzanych przez UI adres karty aktualizuje się automatycznie. Przy zasobach YAML ustaw wersję URL na `v=1.3.0`, jak poniżej. Jeśli aktualizujesz z wersji używającej `/local/gdzie-sie-ukryc/`, zmień także ścieżkę zasobu.
+W zasobach Lovelace zarządzanych przez UI adres karty aktualizuje się automatycznie. Przy zasobach YAML ustaw wersję URL na `v=1.4.0`, jak poniżej. Jeśli aktualizujesz z wersji używającej `/local/gdzie-sie-ukryc/`, zmień także ścieżkę zasobu.
 
 ## Instalacja przez HACS
 
@@ -46,7 +47,7 @@ Gdy zasoby są utrzymywane w YAML, połącz poniższy fragment z istniejącą se
 lovelace:
   resource_mode: yaml
   resources:
-    - url: /gdzie_sie_ukryc/frontend/gdzie-sie-ukryc-card.js?v=1.3.0
+    - url: /gdzie_sie_ukryc/frontend/gdzie-sie-ukryc-card.js?v=1.4.0
       type: module
 ```
 
@@ -55,6 +56,30 @@ Jeśli automatyczne dodanie zasobu UI się nie powiedzie, dodaj ten URL w **Usta
 ## Instalacja ręczna
 
 Z repozytorium lub paczki skopiuj **cały** `custom_components/gdzie_sie_ukryc` do `/config/custom_components/gdzie_sie_ukryc`. Uruchom HA ponownie i dodaj integrację oraz kartę jak wyżej. `/config` oznacza katalog zawierający `configuration.yaml`. Pozostałych plików repozytorium nie trzeba kopiować do HA. Node.js ani narzędzia deweloperskie nie są wymagane do instalacji.
+
+## Punkty na mapie i nazwy oraz adresy
+
+Od wersji 1.4 integracja tworzy encje **`geo_location`** dla pobliskich punktów. Ich współrzędne pozwalają wyświetlić je we wbudowanej zakładce **Mapa** HA. Nazwa encji łączy nazwę punktu z adresem; informacje są też osobnymi atrybutami `point_name` i `address`. Markery nie wymagają udanej odpowiedzi silnika tras.
+
+Domyślnie publikowanych jest **100 najbliższych punktów na strefę** w ustawionym promieniu. W opcjach możesz wybrać 30–500. Przy nakładających się strefach ten sam publiczny identyfikator tworzy jedną encję. Zmiana strefy, promienia lub bazy aktualizuje punkty i usuwa te, które opuściły wybrany obszar. Ta liczba dotyczy widoku mapy i listy, a nie wielkości pobieranej bazy ani sensora liczby wszystkich punktów w promieniu.
+
+W standardowej karcie HA możesz wskazać źródło:
+
+```yaml
+type: map
+title: Punkty schronienia
+geo_location_sources:
+  - gdzie_sie_ukryc
+entities:
+  - zone.home
+auto_fit: true
+```
+
+We własnej karcie `custom:gdzie-sie-ukryc-card` dostępne są punkty **oraz geometrie tras**. Sekcja **Punkty w okolicy** pokazuje nazwę, adres, odległość w linii prostej, rodzaj obiektu i deklarowaną dostępność, także przy braku wyznaczonej trasy. Lista rozwija się po 20 pozycji. **Pokaż punkt** przybliża marker i otwiera nazwę oraz adres w dymku. Apple Maps / Google Maps są dostępne również dla punktu bez trasy OSRM.
+
+Dla encji `geo_location` stan w kilometrach oznacza odległość od lokalizacji domu HA, zgodnie z kontraktem tej platformy. Dodatkowe atrybuty `nearest_zone`, `zone_ids` i `distance_to_zone_m` opisują wybrane strefy. W liście na karcie odległość jest liczona od aktualnie wybranej strefy.
+
+Wbudowana mapa HA pokazuje markery encji. Geometrie pieszych tras i listę adresów udostępnia własna karta integracji.
 
 ## Dom i inne lokalizacje
 
@@ -80,7 +105,7 @@ HA sprawdza plik po pierwszym uruchomieniu, domyślnie co 24 godziny oraz po rę
 
 Błąd HTTP, timeout lub uszkodzony eksport zachowują ostatni poprawny zbiór. Przy braku wcześniejszego zbioru używana jest pełna baza dołączona do integracji. Karta pokazuje pochodzenie danych, czas pozyskania, ostatnie udane sprawdzenie oraz komunikat błędu. Kolejna próba następuje po okresie odświeżania lub po ręcznym kliknięciu.
 
-Plik ma obecnie około 15 MB. Integracja pobiera pełny zbiór do pamięci i zapisuje go lokalnie, ale do karty i atrybutów sensorów przekazuje tylko podsumowanie oraz wybranych kandydatów i trasy. Limit bezpieczeństwa: CSV 32 MiB, do 200 000 rekordów.
+Plik ma obecnie około 15 MB. Integracja pobiera pełny zbiór do pamięci i zapisuje go lokalnie, ale do karty przekazuje tylko pobliskie punkty i wybrane trasy. Sensory zawierają podsumowania, bez pełnej listy punktów ani geometrii. Limit bezpieczeństwa: CSV 32 MiB, do 200 000 rekordów.
 
 ## Pełny JSON i narzędzia
 
@@ -138,7 +163,7 @@ Przykład formatu (punkt fikcyjny, wyłącznie do testów):
 3. Oblicza trasy piesze przez OSRM przygotowany dla ruchu pieszego.
 4. Pokazuje domyślnie 3 najkrótsze trasy **wśród wybranych kandydatów**. Nie gwarantuje 3 najkrótszych tras w całej bazie.
 
-Promień oznacza odległość geograficzną, więc droga piesza może być dłuższa. Każda trasa ma kolor, długość i ETA. **Pokaż trasę** przybliża pojedynczą trasę; **Pokaż wszystkie trasy** przywraca widok zbiorczy. Apple Maps i Google Maps otwierają nawigację pieszą i obliczają własną trasę.
+Promień oznacza odległość geograficzną, więc droga piesza może być dłuższa. Każda trasa ma kolor, długość i ETA. **Pokaż trasę** przybliża pojedynczą trasę; **Pokaż wszystkie punkty i trasy** przywraca widok zbiorczy. Apple Maps i Google Maps otwierają nawigację pieszą i obliczają własną trasę.
 
 Domyślny silnik to publiczna usługa demonstracyjna FOSSGIS:
 
@@ -165,7 +190,7 @@ Dla każdej wybranej strefy powstają cztery sensory:
 | Najbliższa trasa | Długość pierwszej trasy w metrach |
 | Czas dojścia | ETA pierwszej trasy w minutach |
 
-Atrybuty obejmują `source_status`, `source_error`, `points_updated_at`, `routes_updated_at`, `zone_id`, `dataset_points`, `dataset_source`, `dataset_origin` i `dataset_checked_at`. `dataset_points` to liczba punktów w całej bazie, nie liczba najbliższych. `dataset_origin: live` oznacza bazę zweryfikowaną przez udane pobranie/sprawdzenie, `bundled` — dołączony CSV. `points_updated_at` to czas pozyskania treści, a nie data zmiany każdego obiektu przez PSP. `cached` z błędem oznacza dostępne dane zapisane przy nieudanym odświeżeniu.
+Atrybuty obejmują `source_status`, `source_error`, `points_updated_at`, `routes_updated_at`, `zone_id`, `dataset_points`, `dataset_source`, `dataset_origin`, `dataset_checked_at`, `map_points` i `map_points_limit`. `dataset_points` to liczba punktów w całej bazie, nie liczba najbliższych. `dataset_origin: live` oznacza bazę zweryfikowaną przez udane pobranie/sprawdzenie, `bundled` — dołączony CSV. `points_updated_at` to czas pozyskania treści, a nie data zmiany każdego obiektu przez PSP. `cached` z błędem oznacza dostępne dane zapisane przy nieudanym odświeżeniu.
 
 Geometrie nie są atrybutami sensorów. Jest też przycisk **Odśwież punkty i trasy**, dostępny w automatyzacjach przez `button.press`. Wybierz rzeczywisty identyfikator encji w swojej instalacji. Odczyt karty używa uwierzytelnionego WebSocket HA; import i ręczne odświeżenie wymagają administratora.
 
@@ -173,12 +198,13 @@ Geometrie nie są atrybutami sensorów. Jest też przycisk **Odśwież punkty i 
 
 | Objaw | Co sprawdzić |
 | --- | --- |
-| Wciąż `HTTP 403` ze starego źródła | Wersja 1.3.0, restart i źródło **Cała baza PSP — automatyczny eksport CSV** |
+| Wciąż `HTTP 403` ze starego źródła | Wersja 1.4.0, restart i źródło **Cała baza PSP — automatyczny eksport CSV** |
 | `cached` i błąd eksportu | Sprawdź `dataset_points`; pełna zapisana/dołączona baza pozostaje dostępna. Po przywróceniu połączenia użyj Odśwież |
 | Brak punktów przy bazie 85 tys. | Współrzędne `zone.home`, wybraną strefę i promień |
 | Brak `datasets/psp-punkty.csv` | Skopiuj kompletny katalog integracji z paczki |
+| Dane są, brak punktów w zakładce Mapa | Wersję 1.4.0, restart HA oraz encje `geo_location` w Narzędziach deweloperskich; własna karta pokazuje też listę adresów |
 | Punkty znalezione, brak tras | Dostęp HA do silnika pieszych tras i komunikat błędu tras |
-| `Custom element doesn't exist` | Zasób modułu z `v=1.3.0` i ponowne wczytanie aplikacji |
+| `Custom element doesn't exist` | Zasób modułu z `v=1.4.0` i ponowne wczytanie aplikacji |
 | Brak Leaflet | Cały katalog `frontend/vendor/` |
 | Pusty podkład | Dostęp przeglądarki do kafelków; podkład i trasy są niezależne |
 
@@ -187,6 +213,7 @@ Geometrie nie są atrybutami sensorów. Jest też przycisk **Odśwież punkty i 
 - [Zbiór PSP w dane.gov.pl](https://dane.gov.pl/pl/dataset/28058,punkty-schronienia-w-polsce) oraz [metadane zasobu CSV](https://api.dane.gov.pl/1.4/resources/1393918,punkty-schronienia-dane-csv).
 - [Oficjalny opis aplikacji PSP](https://github.com/KGPSP/gdziesieukryc.pl).
 - [Strefy Home Assistant](https://www.home-assistant.io/integrations/zone/).
+- [Mapa HA](https://www.home-assistant.io/dashboards/map/) i [encje geolokalizacji](https://developers.home-assistant.io/docs/core/entity/geo-location/).
 - [Własne karty HA](https://developers.home-assistant.io/docs/frontend/custom-ui/custom-card/).
 - [FOSSGIS](https://routing.openstreetmap.de/) i [API OSRM](https://project-osrm.org/docs/v5.24.0/api/).
 - [Zasady kafelków OpenStreetMap](https://operations.osmfoundation.org/policies/tiles/).

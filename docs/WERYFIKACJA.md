@@ -1,12 +1,32 @@
-# Weryfikacja wersji 1.3.0
+# Weryfikacja wersji 1.4.0
 
 Wykonano 13.09.2026. Zakres: pełny eksport PSP, integracja, zapis lokalny, importer i karta. Nie wykonywano zmian w instalacji HA użytkownika ani pushu do jego repozytorium.
+
+## Punkty na mapie HA i lista okolicy
+
+Zrzut dostarczony przy zgłoszeniu pokazuje wybraną wbudowaną zakładkę Mapa HA. Wersja 1.3 udostępniała sensory i własną kartę, ale nie tworzyła encji punktów `geo_location` dla tej mapy.
+
+W 1.4 dodano platformę `geo_location`, osobne pobliskie punkty w danych karty i listę nazw oraz adresów. Domyślnie widocznych jest 100 najbliższych punktów na strefę, z opcją 30–500. Pełny zbiór i licznik wszystkich punktów w promieniu nie są ograniczane przez tę opcję.
+
+Nowy test z rzeczywistym HA potwierdził:
+
+- Przy 83 fikcyjnych punktach, 3 strefach i awarii silnika tras HTTP 503 powstały **33 encje mapy**: 30 wspólnych dla dwóch nakładających się stref i 3 w drugim mieście. Geometrie tras były puste, a punkty pozostały dostępne.
+- Encje mają numeryczne współrzędne, źródło `gdzie_sie_ukryc`, nazwę i adres, stabilny identyfikator i informacje o strefach. Stan geolokalizacji mierzy odległość od domu HA, osobny atrybut mierzy odległość od najbliższej wybranej strefy.
+- Zmiana nazwy i adresu aktualizuje istniejącą encję bez zmiany jej tożsamości.
+- Przeniesienie stref usuwa stare punkty ze stanów i rejestru encji; wspólne punkty w nowym obszarze nie są duplikowane.
+- Błąd źródła zachowuje znane punkty; odładowanie i ponowne załadowanie przywraca aktualny widok z zapisanej bazy. Poprawne puste źródło usuwa punkty oraz ich rejestracje.
+
+Nowe testy DOM rzeczywistej karty i Leaflet potwierdziły **45 markerów punktów bez żadnej trasy**, nazwy i adresy w liście oraz dymkach, bezpieczne wyświetlanie tekstu, przybliżanie punktu, nawigację, rozwijanie listy 20 / 40 / 45 pozycji oraz zmianę strefy. Oddzielny przypadek z trasami potwierdził brak podwójnych markerów dla punktów występujących także w liście.
+
+Sprawdzono również zachowanie oryginalnych bajtów CSV po `git add` i odtworzeniu z indeksu przy `core.autocrlf=true`. Reguła binarna w `.gitattributes` zachowała sumę SHA-256 i 85 740 zakończeń CRLF, w tym wiersz nagłówka.
+
+Zasady mapy oraz platformy potwierdzono w [oficjalnej dokumentacji mapy HA](https://www.home-assistant.io/dashboards/map/) i [encjach geolokalizacji](https://developers.home-assistant.io/docs/core/entity/geo-location/). Wbudowana mapa wyświetla markery; geometrie pieszych tras i listę okolicy udostępnia własna karta integracji.
 
 ## Pełne opublikowane dane
 
 Źródło potwierdzono w oficjalnych metadanych [zbioru PSP, ID 28058](https://api.dane.gov.pl/1.4/datasets/28058,punkty-schronienia-w-polsce) oraz [zasobu CSV, ID 1393918](https://api.dane.gov.pl/1.4/resources/1393918,punkty-schronienia-dane-csv). Wydawca: Komenda Główna PSP; licencja CC BY 4.0; deklarowana aktualizacja co tydzień. Końcowy, opublikowany URL: `https://gdziesieukryc.pl/PS_XML/punkty_schronienia.csv`.
 
-Wykonano zwykłe pobranie opublikowanego CSV oraz próbę nowym `OpenDataClient` z sesją utworzoną przez Home Assistant 2026.9.2. Obie próby zwróciły **HTTP 200** i identyczną treść. Sesja HA zachowała standardowy User-Agent Home Assistant. Środowisko testowe wymaga sieciowego proxy, dlatego w tej jednorazowej próbie włączono odczyt ustawień proxy środowiska; kod integracji korzysta ze zwykłej wspólnej sesji HA. Nie kopiowano cookies ani nagłówków z HAR i nie odtwarzano CAPTCHA.
+W etapie 1.3 tego samego dnia wykonano zwykłe pobranie opublikowanego CSV oraz próbę nowym `OpenDataClient` z sesją utworzoną przez Home Assistant 2026.9.2. Obie próby zwróciły **HTTP 200** i identyczną treść. Sesja HA zachowała standardowy User-Agent Home Assistant. Środowisko testowe wymaga sieciowego proxy, dlatego w tej jednorazowej próbie włączono odczyt ustawień proxy środowiska; kod integracji korzysta ze zwykłej wspólnej sesji HA. Nie kopiowano cookies ani nagłówków z HAR i nie odtwarzano CAPTCHA.
 
 | Właściwość CSV | Wynik |
 | --- | --- |
@@ -26,8 +46,8 @@ Suma SHA-256 oraz atrybucja są w `datasets/snapshot.json` i `DATA_LICENSE.md`. 
 | Element | Wynik i zakres |
 | --- | --- |
 | Home Assistant | Rzeczywisty Core 2026.9.2, Python 3.14.7 |
-| Testy Python | **50 przechodzących testów** |
-| Karta mapy | **7 przechodzących testów DOM**, jsdom 30.0.1, dołączony Leaflet 1.9.4 |
+| Testy Python | **51 przechodzących testów** |
+| Karta mapy | **9 przechodzących testów DOM**, jsdom 30.0.1, dołączony Leaflet 1.9.4 |
 | Pierwsze uruchomienie z błędem eksportu | Kontrolowane 403: rzeczywisty dołączony CSV z ponad 85 tys. punktów pozostaje dostępny |
 | Cała baza i wiele stref | Jeden pobrany zbiór dla dwóch odległych stref; 301 znalezionych punktów przy domu testowym i 1 w drugiej strefie; 8 sensorów |
 | Zmiana lokalizacji | Przeniesienie strefy wyszukuje w pełnym zbiorze bez nowego pobrania przed okresem odświeżania |
@@ -37,10 +57,11 @@ Suma SHA-256 oraz atrybucja są w `datasets/snapshot.json` i `DATA_LICENSE.md`. 
 | HTTP eksportu | Lokalny serwer: 200 / 304 / 403 / 302, nagłówki warunkowe, limit rozmiaru, brak parametrów lokalizacji, brak cookies i Authorization |
 | CSV | Ponad 250 punktów, zaobserwowane nagłówki, BOM, pola z przecinkiem; błędne UTF-8, HTML, współrzędne, sprzeczne i identyczne duplikaty |
 | Pełny JSON | Rzeczywisty loader lokalnego pliku HA wczytał wszystkie 85 739 punktów z pliku około 23 MB; wszystkie równe wynikowi CSV |
+| Punkty i karta 1.4 | Encje mapy bez tras, deduplikacja i usuwanie punktów, lista nazw i adresów, dymki i nawigacja niezależne od OSRM |
 | Karta pełnej bazy | Licznik całego zbioru i okolicy, atrybucja CC BY 4.0, częstotliwość publikacji, dane dołączone i błąd bez ukrywania zapisanych tras |
 | Dotychczasowe funkcje | Import JSON / GeoJSON / HAR, plik, opcje, trasy, sensory, stary klient nearby i osobne zapisy obszarów |
 | Zasoby HA i Lovelace | Rzeczywisty HTTP HA, karta JS, Leaflet JS/CSS, ograniczenie do katalogu frontend; migracja zasobu UI, brak duplikatów i tryb YAML |
-| Kontrole statyczne | Ruff check i format, składnia JavaScript, struktura repozytorium, JSON i 8 plików YAML |
+| Kontrole statyczne | Ruff check i format, składnia JavaScript, struktura repozytorium, JSON i 9 plików YAML |
 
 Testy automatyczne używają rzeczywistych obiektów HA, platform i plików Store. Sieć, odpowiedzi źródła i geometrie tras są kontrolowane, aby sprawdzić błędy i przeładowania bez ruchu do publicznych usług. Wyliczanie interfejsów i mDNS hosta testowego zastąpiono atrapami. Pobranie produkcyjnego CSV było osobną, opisaną powyżej próbą.
 

@@ -1,6 +1,6 @@
 {
   "name": "home-assistant-gdzie-sie-ukryc",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "scripts": {
     "test:card": "node --test tests/card.test.cjs"

@@ -96,6 +96,8 @@ class ShelterSensor(CoordinatorEntity, SensorEntity):
             "nearest_address": nearest.get("shelter", {}).get("address"),
             "nearest_name": nearest.get("shelter", {}).get("name"),
             "candidate_count": location.get("candidate_count", 0),
+            "map_points": len(location.get("nearby", [])),
+            "map_points_limit": location.get("nearby_limit"),
             "dataset_points": data.get("point_count", 0),
             "dataset_source": data.get("dataset", {}).get("source_url"),
             "dataset_origin": data.get("dataset", {}).get("origin"),

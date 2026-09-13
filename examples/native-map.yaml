@@ -1,0 +1,7 @@
+type: map
+title: Punkty schronienia
+geo_location_sources:
+  - gdzie_sie_ukryc
+entities:
+  - zone.home
+auto_fit: true

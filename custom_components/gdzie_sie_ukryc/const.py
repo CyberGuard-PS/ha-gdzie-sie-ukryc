@@ -2,7 +2,7 @@
 
 DOMAIN = "gdzie_sie_ukryc"
 NAME = "Gdzie się ukryć"
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 SOURCE = "https://gdziesieukryc.pl"
 PSP_EXPORT_URL = f"{SOURCE}/PS_XML/punkty_schronienia.csv"
 OPEN_DATA_URL = "https://dane.gov.pl/pl/dataset/28058,punkty-schronienia-w-polsce"
@@ -18,6 +18,7 @@ DEFAULTS = {
     "radius_km": 5.0,
     "max_routes": 3,
     "candidate_limit": 12,
+    "nearby_limit": 100,
     "update_hours": 24,
     "routing_url": DEFAULT_ROUTER,
 }

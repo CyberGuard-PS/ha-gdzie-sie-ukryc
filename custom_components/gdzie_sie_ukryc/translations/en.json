@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "Gdzie się ukryć",
-        "description": "Automatically fetch nearby points from gdziesieukryc.pl for Home and selected HA zones. No API key or file import is needed. Existing 1.0 installations: select the automatic source to enable it.",
+        "description": "Download the complete PSP export, show nearby points on the HA map and calculate walking routes from selected zones. No API key or manual file required.",
         "data": {
           "source_mode": "Point source",
           "zones": "Starting locations (HA zones)",
@@ -14,10 +14,12 @@
           "update_hours": "Refresh interval (hours)",
           "routing_url": "Walking OSRM route endpoint",
           "data_file": "JSON path relative to HA configuration directory",
-          "feed_url": "Full JSON feed URL"
+          "feed_url": "Full JSON feed URL",
+          "nearby_limit": "Points on the map and nearby list (per zone)"
         },
         "data_description": {
-          "source_mode": "Automatically downloads the full national PSP CSV export, checks it every 24 hours by default, and filters points locally. PSP declares weekly publication. The routing service receives origin and destination coordinates."
+          "source_mode": "Automatically downloads the full national PSP CSV export, checks it every 24 hours by default, and filters points locally. PSP declares weekly publication. The routing service receives origin and destination coordinates.",
+          "nearby_limit": "Defaults to 100 nearest points in the radius, range 30–500. Does not limit the full dataset download or the count of all points in the radius."
         }
       }
     },
@@ -35,7 +37,7 @@
     "step": {
       "init": {
         "title": "Gdzie się ukryć",
-        "description": "Automatically fetch nearby points from gdziesieukryc.pl for Home and selected HA zones. No API key or file import is needed. Existing 1.0 installations: select the automatic source to enable it.",
+        "description": "Download the complete PSP export, show nearby points on the HA map and calculate walking routes from selected zones. No API key or manual file required.",
         "data": {
           "source_mode": "Point source",
           "zones": "Starting locations (HA zones)",
@@ -45,10 +47,12 @@
           "update_hours": "Refresh interval (hours)",
           "routing_url": "Walking OSRM route endpoint",
           "data_file": "JSON path relative to HA configuration directory",
-          "feed_url": "Full JSON feed URL"
+          "feed_url": "Full JSON feed URL",
+          "nearby_limit": "Points on the map and nearby list (per zone)"
         },
         "data_description": {
-          "source_mode": "Automatically downloads the full national PSP CSV export, checks it every 24 hours by default, and filters points locally. PSP declares weekly publication. The routing service receives origin and destination coordinates."
+          "source_mode": "Automatically downloads the full national PSP CSV export, checks it every 24 hours by default, and filters points locally. PSP declares weekly publication. The routing service receives origin and destination coordinates.",
+          "nearby_limit": "Defaults to 100 nearest points in the radius, range 30–500. Does not limit the full dataset download or the count of all points in the radius."
         }
       }
     },

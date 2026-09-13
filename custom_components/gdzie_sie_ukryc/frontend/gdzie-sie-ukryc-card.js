@@ -1,4 +1,4 @@
-/* Gdzie się ukryć 1.3.0 — local Lovelace card, no CDN dependency. */
+/* Gdzie się ukryć 1.4.0 — local Lovelace card, no CDN dependency. */
 const ASSET_BASE = new URL(".", import.meta.url);
 const COLORS = ["#176bd6", "#cf4c16", "#7f45b9", "#058273", "#bb2970", "#69561a"];
 
@@ -41,6 +41,8 @@ class GdzieSieUkrycCard extends HTMLElement {
     this._data = null;
     this._map = null;
     this._loading = false;
+    this._focusedPoint = null;
+    this._nearbyVisible = 20;
   }
 
   setConfig(config) {
@@ -87,9 +89,10 @@ class GdzieSieUkrycCard extends HTMLElement {
       button:disabled{opacity:.5;cursor:wait} button:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #3d91ee;outline-offset:2px}
       .status {padding:0 20px 12px;font-size:13px;color:var(--secondary-text-color,#59697b);line-height:1.5;white-space:pre-line}
       .map {width:100%;height:420px;background:#e8eef0;color:#172535;font:14px system-ui;z-index:0} .map .leaflet-control-attribution{font-size:10px;max-width:calc(100% - 40px)}
-      .list {padding:8px 16px}.route {border-bottom:1px solid var(--divider-color,#e1e6eb);padding:14px 4px;display:grid;grid-template-columns:28px 1fr;gap:10px}.route:last-child{border:0}
-      .number {color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}.route h3{font-size:15px;line-height:1.4;margin:0 0 3px}
-      .route p {margin:3px 0;font-size:13px;line-height:1.5;color:var(--secondary-text-color,#59697b)}.route .metrics{font-size:15px;font-weight:600;color:var(--primary-text-color,#1c2938)}
+      .list {padding:8px 16px}.route,.point {border-bottom:1px solid var(--divider-color,#e1e6eb);padding:14px 4px;display:grid;grid-template-columns:28px 1fr;gap:10px}.route:last-child,.point:last-child{border:0}
+      .number {color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}.route h3,.point h3{font-size:15px;line-height:1.4;margin:0 0 3px}
+      .route p,.point p {margin:3px 0;font-size:13px;line-height:1.5;color:var(--secondary-text-color,#59697b)}.route .metrics{font-size:15px;font-weight:600;color:var(--primary-text-color,#1c2938)}
+      .nearby-list{max-height:600px;overflow-y:auto}.nearby-title{font-size:17px;margin:12px 4px 6px}.nearby-summary{font-size:13px;line-height:1.5;color:var(--secondary-text-color,#59697b);margin:6px 4px}.more-points{margin:12px 4px}
       .actions {display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}.actions a{font-size:13px;color:var(--primary-color,#176bd6);text-decoration:none;padding:5px 7px;border:1px solid var(--divider-color,#d8e0e7);border-radius:6px}.actions button{font-size:13px;padding:5px 7px}
       .notice {margin:8px 20px 0;padding:10px 12px;background:var(--secondary-background-color,#f5f7fa);border-radius:8px;font-size:13px;line-height:1.5;white-space:pre-line}.notice:empty{display:none}
       .footer{padding:12px 20px 16px;font-size:12px;line-height:1.5;color:var(--secondary-text-color,#59697b)}.footer a{color:var(--primary-color,#176bd6)}.empty{padding:16px 4px;font-size:14px;line-height:1.6}
@@ -107,20 +110,21 @@ class GdzieSieUkrycCard extends HTMLElement {
     const controls = node("div", undefined, "controls");
     this._zones = node("select");
     this._zones.setAttribute("aria-label", "Lokalizacja początkowa");
-    this._zones.addEventListener("change", () => { this._selected = null; this._renderLocation(true); });
+    this._zones.addEventListener("change", () => { this._selected = null; this._focusedPoint = null; this._nearbyVisible = 20; this._renderLocation(true); });
     this._refresh = node("button", "Odśwież");
     this._refresh.addEventListener("click", () => this._forceRefresh());
-    this._fit = node("button", "Pokaż wszystkie trasy");
-    this._fit.addEventListener("click", () => { this._selected = null; this._renderMap(true); });
+    this._fit = node("button", "Pokaż wszystkie punkty i trasy");
+    this._fit.addEventListener("click", () => { this._selected = null; this._focusedPoint = null; this._renderMap(true); });
     controls.append(this._zones, this._fit, this._refresh);
     top.append(this._title, controls);
     this._status = node("div", "Ładowanie integracji…", "status");
     this._status.setAttribute("role", "status");
     this._mapContainer = node("div", undefined, "map");
-    this._mapContainer.setAttribute("aria-label", "Mapa tras do punktów schronienia");
+    this._mapContainer.setAttribute("aria-label", "Mapa pobliskich punktów schronienia i tras");
     this._notice = node("div", undefined, "notice");
     this._notice.setAttribute("role", "status");
     this._list = node("div", undefined, "list");
+    this._pointsList = node("div", undefined, "list nearby-list");
     const footer = node("div", undefined, "footer");
     const source = node("a", "Dane punktów: gdziesieukryc.pl");
     source.href = "https://gdziesieukryc.pl/"; source.target = "_blank"; source.rel = "noopener noreferrer";
@@ -131,7 +135,7 @@ class GdzieSieUkrycCard extends HTMLElement {
     this._fileInput = node("input"); this._fileInput.type = "file"; this._fileInput.accept = ".json,.geojson,application/json"; this._fileInput.hidden = true;
     this._fileInput.addEventListener("change", () => this._importFile());
     footer.append(node("br"), this._importButton, this._fileInput);
-    this._card.append(top, this._status, this._mapContainer, this._notice, this._list, footer);
+    this._card.append(top, this._status, this._mapContainer, this._notice, this._list, this._pointsList, footer);
     this.shadowRoot.append(css, style, this._card);
     this._updateAdmin();
     if (this.isConnected) this._initMap();
@@ -205,6 +209,7 @@ class GdzieSieUkrycCard extends HTMLElement {
     if (!this._data) return;
     const location = this._location();
     this._list.replaceChildren();
+    this._pointsList.replaceChildren();
     const sourceStatus = location?.source_status ?? this._data.source_status;
     const pointsDate = location && "points_updated_at" in location ? location.points_updated_at : this._data.points_updated_at;
     const sourceError = location && "source_error" in location ? location.source_error : this._data.source_error;
@@ -225,7 +230,7 @@ class GdzieSieUkrycCard extends HTMLElement {
       this._renderMap(fit); return;
     }
     const routes = location.routes ?? [];
-    this._status.textContent += `\n${location.found_count} znalezionych punktów w promieniu · ${routes.length} tras · trasy: ${dateLabel(location.routes_updated_at)}`;
+    this._status.textContent += `\n${location.found_count} znalezionych punktów w promieniu · ${this._nearbyPoints(location).length} punktów na mapie · ${routes.length} tras · trasy: ${dateLabel(location.routes_updated_at)}`;
     const notes = [];
     if (fullDataset) notes.push(`Pełny eksport PSP, publikowany co tydzień. Ostatnie sprawdzenie: ${dateLabel(this._data.dataset?.checked_at)}.`);
     if (fullDataset && this._data.dataset?.origin === "bundled") notes.push("Używana jest baza dołączona do integracji. Odświeżenie pobierze aktualny eksport po przywróceniu dostępu.");
@@ -240,7 +245,7 @@ class GdzieSieUkrycCard extends HTMLElement {
     this._notice.textContent = notes.join("\n");
     if (!routes.length) {
       const emptyMessage = sourceStatus === "error" ? "Nie udało się pobrać punktów dla tej lokalizacji. Sprawdź komunikat powyżej i użyj przycisku Odśwież po przywróceniu połączenia."
-        : location.found_count > 0 ? "Punkty znalezione; brak obliczonej trasy pieszej. Sprawdź usługę tras i odśwież."
+        : location.found_count > 0 ? "Punkty są widoczne na mapie i liście poniżej. Brak obliczonej trasy pieszej — sprawdź usługę tras lub otwórz nawigację do wybranego punktu."
         : this._data.source_mode === "import" && this._data.point_count === 0 ? "Zaimportuj plik JSON z punktami z serwisu. Instrukcja jest w paczce integracji."
         : fullDataset ? "W opublikowanej bazie PSP nie znaleziono punktów w wybranym promieniu. Sprawdź lokalizację Dom i promień w opcjach integracji."
         : automatic ? "Serwis nie zwrócił punktów w wybranym promieniu. Możesz zwiększyć promień w opcjach integracji."
@@ -259,12 +264,50 @@ class GdzieSieUkrycCard extends HTMLElement {
       if (route.end_gap_m > 10 || route.start_gap_m > 10) content.append(node("p", `Mapa kończy trasę przy sieci dróg. Odcinek do punktu (${meters(route.end_gap_m)}) i właściwe wejście wymagają sprawdzenia.`));
       const actions = node("div", undefined, "actions");
       const show = node("button", "Pokaż trasę");
-      show.addEventListener("click", () => { this._selected = route.shelter.id; this._renderMap(true); });
+      show.addEventListener("click", () => { this._focusedPoint = null; this._selected = route.shelter.id; this._renderMap(true); });
       actions.append(show, ...this._navigationLinks(location.origin, route.shelter));
       content.append(actions); row.append(badge, content); this._list.append(row);
     });
     if (location.unrouted?.length) this._list.append(node("p", `${location.unrouted.length} kandydatów bez nowej trasy: widoczne jako szare punkty.`, "empty"));
+    this._renderNearby(location);
     this._renderMap(fit);
+  }
+
+  _nearbyPoints(location) {
+    if (Array.isArray(location?.nearby)) return location.nearby;
+    // Older backends still expose routed/failed candidates, but not a nearby list.
+    const points = new Map();
+    for (const point of [...(location?.routes ?? []), ...(location?.unrouted ?? [])]) points.set(point.shelter.id, point);
+    return [...points.values()].sort((a, b) => (a.straight_distance_m ?? 0) - (b.straight_distance_m ?? 0));
+  }
+
+  _renderNearby(location) {
+    this._pointsList.replaceChildren();
+    const points = this._nearbyPoints(location);
+    this._pointsList.hidden = !points.length;
+    if (!points.length) return;
+    this._pointsList.append(node("h3", "Punkty w okolicy", "nearby-title"));
+    const summary = `Na mapie ${points.length} najbliższych z ${location.found_count} punktów w promieniu. Lista według odległości w linii prostej.`;
+    this._pointsList.append(node("p", summary + (location.nearby_truncated ? " Liczbę punktów na mapie i liście zwiększysz w opcjach integracji." : ""), "nearby-summary"));
+    points.slice(0, this._nearbyVisible).forEach((point, index) => {
+      const shelter = point.shelter;
+      const row = node("div", undefined, "point");
+      const badge = node("div", index + 1, "number"); badge.style.background = "#058273";
+      const content = node("div");
+      content.append(node("h3", shelter.name), node("p", shelter.address || "Adres niepodany", "point-address"));
+      if (Number.isFinite(point.straight_distance_m)) content.append(node("p", `${meters(point.straight_distance_m)} w linii prostej`, "point-distance"));
+      content.append(node("p", `${shelter.category ?? "Punkt schronienia"} · dostępność: ${shelter.availability ?? "Brak informacji"}`));
+      const actions = node("div", undefined, "actions");
+      const show = node("button", "Pokaż punkt");
+      show.addEventListener("click", () => { this._selected = null; this._focusedPoint = shelter.id; this._renderMap(true); });
+      actions.append(show, ...this._navigationLinks(location.origin, shelter));
+      content.append(actions); row.append(badge, content); this._pointsList.append(row);
+    });
+    if (points.length > this._nearbyVisible) {
+      const more = node("button", `Pokaż kolejne ${Math.min(20, points.length - this._nearbyVisible)} punktów`, "more-points");
+      more.addEventListener("click", () => { this._nearbyVisible += 20; this._renderNearby(location); });
+      this._pointsList.append(more);
+    }
   }
 
   _navigationLinks(origin, shelter) {
@@ -288,6 +331,7 @@ class GdzieSieUkrycCard extends HTMLElement {
   _renderMap(fit = false) {
     if (!this._map || !this._layer) return;
     this._layer.clearLayers();
+    this._mapMarkers = new Map();
     const location = this._location();
     if (!location) return;
     const origin = location.origin;
@@ -297,19 +341,39 @@ class GdzieSieUkrycCard extends HTMLElement {
       const color = COLORS[index % COLORS.length];
       const selected = this._selected === route.shelter.id;
       const line = this._L.geoJSON(route.geometry, { style: { color, weight: selected ? 6 : 4, opacity: this._selected && !selected ? .35 : .9, dashArray: route.status === "cached" ? "8 6" : undefined } }).addTo(this._layer);
-      line.on("click", () => { this._selected = route.shelter.id; this._renderMap(true); });
+      line.on("click", () => { this._focusedPoint = null; this._selected = route.shelter.id; this._renderMap(true); });
       if (selected) selectedLine = line;
-      const popup = node("div"); popup.append(node("strong", `${index + 1}. ${route.shelter.name}`), node("p", route.shelter.address), node("p", `${meters(route.distance_m)} · ${Math.ceil(route.duration_s / 60)} min pieszo`));
-      this._marker(route.shelter.latitude, route.shelter.longitude, index + 1, color, popup);
       const coords = route.geometry.coordinates;
       if (route.end_gap_m > 10) this._L.polyline([[coords.at(-1)[1], coords.at(-1)[0]], [route.shelter.latitude, route.shelter.longitude]], { color: "#657789", weight: 2, dashArray: "3 6" }).bindTooltip("Odcinek do punktu: przejście i wejście niepotwierdzone").addTo(this._layer);
       if (route.start_gap_m > 10) this._L.polyline([[origin.latitude, origin.longitude], [coords[0][1], coords[0][0]]], { color: "#657789", weight: 2, dashArray: "3 6" }).bindTooltip("Odcinek początkowy: przejście niepotwierdzone").addTo(this._layer);
     });
-    (location.unrouted ?? []).forEach(point => this._marker(point.shelter.latitude, point.shelter.longitude, "?", "#657789", node("div", `${point.shelter.name} · brak nowej trasy`)));
+    const points = new Map(this._nearbyPoints(location).map(point => [point.shelter.id, point]));
+    for (const point of [...(location.routes ?? []), ...(location.unrouted ?? [])]) if (!points.has(point.shelter.id)) points.set(point.shelter.id, point);
+    const failed = new Set((location.unrouted ?? []).map(point => point.shelter.id));
+    const routes = new Map((location.routes ?? []).map((route, index) => [route.shelter.id, { route, index }]));
+    for (const point of points.values()) {
+      const shelter = point.shelter;
+      const routed = routes.get(shelter.id);
+      const color = routed ? COLORS[routed.index % COLORS.length] : failed.has(shelter.id) ? "#657789" : "#058273";
+      const popup = node("div");
+      popup.append(node("strong", shelter.name), node("p", shelter.address || "Adres niepodany"));
+      if (Number.isFinite(point.straight_distance_m)) popup.append(node("p", `${meters(point.straight_distance_m)} w linii prostej`));
+      if (routed) popup.append(node("p", `${meters(routed.route.distance_m)} · ${Math.ceil(routed.route.duration_s / 60)} min pieszo`));
+      popup.append(node("p", `${shelter.category ?? "Punkt schronienia"} · dostępność: ${shelter.availability ?? "Brak informacji"}`));
+      const marker = this._marker(shelter.latitude, shelter.longitude, routed ? routed.index + 1 : failed.has(shelter.id) ? "?" : "•", color, popup);
+      marker.bindTooltip(node("span", [shelter.name, shelter.address].filter(Boolean).join(" — ")));
+      this._mapMarkers.set(shelter.id, marker);
+    }
+    if (this._focusedPoint && !this._mapMarkers.has(this._focusedPoint)) this._focusedPoint = null;
     if (fit) {
       this._map.invalidateSize();
-      const bounds = selectedLine?.getBounds() ?? this._layer.getBounds();
-      if (bounds.isValid()) this._map.fitBounds(bounds.pad(.12), { maxZoom: 16, animate: false });
+      const focused = this._mapMarkers.get(this._focusedPoint);
+      if (focused) {
+        this._map.setView(focused.getLatLng(), 17, { animate: false }); focused.openPopup();
+      } else {
+        const bounds = selectedLine?.getBounds() ?? this._layer.getBounds();
+        if (bounds.isValid()) this._map.fitBounds(bounds.pad(.12), { maxZoom: 16, animate: false });
+      }
     }
   }
 
@@ -318,6 +382,7 @@ class GdzieSieUkrycCard extends HTMLElement {
     this._refresh.disabled = true;
     this._notice.textContent = "Pobieranie punktów i obliczanie tras…";
     this._selected = null;
+    this._focusedPoint = null;
     try {
       await this._hass.callWS({ type: "gdzie_sie_ukryc/refresh", entry_id: this._entryId });
       await this._load();

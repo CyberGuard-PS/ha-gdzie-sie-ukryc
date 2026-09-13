@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "Gdzie się ukryć",
-        "description": "Automatycznie pobieraj punkty z gdziesieukryc.pl dla Domu i wybranych stref HA. Nie potrzebujesz klucza API ani pliku. Po aktualizacji z 1.0 wybierz źródło automatyczne, aby je włączyć.",
+        "description": "Pobieraj pełną bazę PSP, pokazuj pobliskie punkty na mapie HA i wyznaczaj trasy z wybranych stref. Nie potrzebujesz klucza API ani pliku.",
         "data": {
           "source_mode": "Źródło punktów",
           "zones": "Lokalizacje początkowe (strefy HA)",
@@ -14,11 +14,13 @@
           "update_hours": "Odświeżanie co (godziny)",
           "routing_url": "URL usługi OSRM z profilem pieszym",
           "data_file": "Plik JSON względem katalogu konfiguracji HA (tylko tryb plik)",
-          "feed_url": "Pełny URL feedu JSON (tylko tryb URL)"
+          "feed_url": "Pełny URL feedu JSON (tylko tryb URL)",
+          "nearby_limit": "Liczba punktów na mapie i liście (na strefę)"
         },
         "data_description": {
           "routing_url": "Domyślnie publiczna usługa tras pieszych FOSSGIS. Przesyła współrzędne początku i końca trasy. Możesz podać własny serwer OSRM z danymi przygotowanymi profilem foot.",
-          "source_mode": "Pobiera całą opublikowaną bazę PSP jako CSV i filtruje punkty lokalnie. Domyślnie sprawdza eksport co 24 godziny; PSP deklaruje publikację co tydzień. Usługa tras otrzymuje współrzędne początku i celu."
+          "source_mode": "Pobiera całą opublikowaną bazę PSP jako CSV i filtruje punkty lokalnie. Domyślnie sprawdza eksport co 24 godziny; PSP deklaruje publikację co tydzień. Usługa tras otrzymuje współrzędne początku i celu.",
+          "nearby_limit": "Domyślnie 100 najbliższych punktów w promieniu, zakres 30–500. Nie ogranicza pobierania pełnej bazy ani licznika wszystkich punktów w promieniu."
         }
       }
     },
@@ -36,7 +38,7 @@
     "step": {
       "init": {
         "title": "Gdzie się ukryć",
-        "description": "Automatycznie pobieraj punkty z gdziesieukryc.pl dla Domu i wybranych stref HA. Nie potrzebujesz klucza API ani pliku. Po aktualizacji z 1.0 wybierz źródło automatyczne, aby je włączyć.",
+        "description": "Pobieraj pełną bazę PSP, pokazuj pobliskie punkty na mapie HA i wyznaczaj trasy z wybranych stref. Nie potrzebujesz klucza API ani pliku.",
         "data": {
           "source_mode": "Źródło punktów",
           "zones": "Lokalizacje początkowe (strefy HA)",
@@ -46,11 +48,13 @@
           "update_hours": "Odświeżanie co (godziny)",
           "routing_url": "URL usługi OSRM z profilem pieszym",
           "data_file": "Plik JSON względem katalogu konfiguracji HA (tylko tryb plik)",
-          "feed_url": "Pełny URL feedu JSON (tylko tryb URL)"
+          "feed_url": "Pełny URL feedu JSON (tylko tryb URL)",
+          "nearby_limit": "Liczba punktów na mapie i liście (na strefę)"
         },
         "data_description": {
           "routing_url": "Domyślnie publiczna usługa tras pieszych FOSSGIS. Przesyła współrzędne początku i końca trasy. Możesz podać własny serwer OSRM z danymi przygotowanymi profilem foot.",
-          "source_mode": "Pobiera całą opublikowaną bazę PSP jako CSV i filtruje punkty lokalnie. Domyślnie sprawdza eksport co 24 godziny; PSP deklaruje publikację co tydzień. Usługa tras otrzymuje współrzędne początku i celu."
+          "source_mode": "Pobiera całą opublikowaną bazę PSP jako CSV i filtruje punkty lokalnie. Domyślnie sprawdza eksport co 24 godziny; PSP deklaruje publikację co tydzień. Usługa tras otrzymuje współrzędne początku i celu.",
+          "nearby_limit": "Domyślnie 100 najbliższych punktów w promieniu, zakres 30–500. Nie ogranicza pobierania pełnej bazy ani licznika wszystkich punktów w promieniu."
         }
       }
     },

@@ -1,3 +1,4 @@
 * text=auto eol=lf
 *.png binary
 *.zip binary
+custom_components/gdzie_sie_ukryc/datasets/*.csv binary

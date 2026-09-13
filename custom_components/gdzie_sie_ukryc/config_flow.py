@@ -40,6 +40,9 @@ def schema(values):
             vol.Required("candidate_limit", default=values["candidate_limit"]): vol.All(
                 vol.Coerce(int), vol.Range(min=1, max=30)
             ),
+            vol.Required("nearby_limit", default=values["nearby_limit"]): vol.All(
+                vol.Coerce(int), vol.Range(min=30, max=500)
+            ),
             vol.Required("update_hours", default=values["update_hours"]): vol.All(
                 vol.Coerce(int), vol.Range(min=1, max=168)
             ),

@@ -308,13 +308,18 @@ class ShelterCoordinator(DataUpdateCoordinator[dict]):
                 if previous.get("signature") != signature:
                     previous = {}
                 zone_source = per_zone.get(origin.id, {})
-                selected, found_count = await self.hass.async_add_executor_job(
+                nearby, found_count = await self.hass.async_add_executor_job(
                     candidates,
                     zone_source.get("points", self.points),
                     origin,
                     self.options["radius_km"],
-                    self.options["candidate_limit"],
+                    max(self.options["candidate_limit"], self.options["nearby_limit"]),
                 )
+                selected = nearby[: self.options["candidate_limit"]]
+                nearby_points = [
+                    {"shelter": point.as_dict(), "straight_distance_m": round(distance, 1)}
+                    for distance, point in nearby[: self.options["nearby_limit"]]
+                ]
                 selected_ids = [point.id for _, point in selected]
                 selected_keys = [f"{point.id}|{point.latitude}|{point.longitude}" for _, point in selected]
                 calculated = valid_timestamp(previous.get("routes_updated_at"))
@@ -358,6 +363,9 @@ class ShelterCoordinator(DataUpdateCoordinator[dict]):
                     "selected_ids": selected_ids,
                     "selected_keys": selected_keys,
                     "found_count": found_count,
+                    "nearby": nearby_points,
+                    "nearby_limit": self.options["nearby_limit"],
+                    "nearby_truncated": found_count > len(nearby_points),
                     "candidate_count": len(selected),
                     "routes": routes,
                     "unrouted": unrouted,

@@ -50,6 +50,7 @@ def check_repository(root=ROOT, allow_template=False):
         "datasets/psp-punkty.csv",
         "datasets/snapshot.json",
         "datasets/README.md",
+        "geo_location.py",
     ]:
         if not (integration / relative).is_file():
             raise ValueError(f"Brak dołączonego zasobu: {relative}")
