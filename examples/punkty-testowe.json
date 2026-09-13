@@ -1,0 +1,32 @@
+{
+  "source": "DANE TESTOWE",
+  "points": [
+    {
+      "id": "test-a",
+      "name": "Punkt testowy A",
+      "address": "DANE TESTOWE – to nie jest miejsce schronienia",
+      "latitude": 50.298,
+      "longitude": 18.672,
+      "category": "Punkt testowy",
+      "availability": "Nie dotyczy"
+    },
+    {
+      "id": "test-b",
+      "name": "Punkt testowy B",
+      "address": "DANE TESTOWE – to nie jest miejsce schronienia",
+      "latitude": 50.3,
+      "longitude": 18.674,
+      "category": "Punkt testowy",
+      "availability": "Nie dotyczy"
+    },
+    {
+      "id": "test-c",
+      "name": "Punkt testowy C",
+      "address": "DANE TESTOWE – to nie jest miejsce schronienia",
+      "latitude": 50.294,
+      "longitude": 18.675,
+      "category": "Punkt testowy",
+      "availability": "Nie dotyczy"
+    }
+  ]
+}

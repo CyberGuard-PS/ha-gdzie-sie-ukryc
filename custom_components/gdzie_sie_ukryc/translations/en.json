@@ -1,0 +1,62 @@
+{
+  "title": "Gdzie się ukryć",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Gdzie się ukryć",
+        "description": "Automatically fetch nearby points from gdziesieukryc.pl for Home and selected HA zones. No API key or file import is needed. Existing 1.0 installations: select the automatic source to enable it.",
+        "data": {
+          "source_mode": "Point source",
+          "zones": "Starting locations (HA zones)",
+          "radius_km": "Search radius",
+          "max_routes": "Number of displayed routes",
+          "candidate_limit": "Nearest candidates to route",
+          "update_hours": "Refresh interval (hours)",
+          "routing_url": "Walking OSRM route endpoint",
+          "data_file": "JSON path relative to HA configuration directory",
+          "feed_url": "Full JSON feed URL"
+        },
+        "data_description": {
+          "source_mode": "Automatic mode sends each selected zone’s coordinates and search radius to gdziesieukryc.pl. Default refresh interval: 24 hours."
+        }
+      }
+    },
+    "error": {
+      "invalid_zones": "Select 1 to 8 HA zones.",
+      "too_few_candidates": "Candidate count must be at least the route count.",
+      "invalid_url": "Enter a complete HTTP/HTTPS URL without credentials.",
+      "invalid_file": "Enter a JSON file path."
+    },
+    "abort": {
+      "single_instance_allowed": "Already configured. Add extra zones using integration options."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Gdzie się ukryć",
+        "description": "Automatically fetch nearby points from gdziesieukryc.pl for Home and selected HA zones. No API key or file import is needed. Existing 1.0 installations: select the automatic source to enable it.",
+        "data": {
+          "source_mode": "Point source",
+          "zones": "Starting locations (HA zones)",
+          "radius_km": "Search radius",
+          "max_routes": "Number of displayed routes",
+          "candidate_limit": "Nearest candidates to route",
+          "update_hours": "Refresh interval (hours)",
+          "routing_url": "Walking OSRM route endpoint",
+          "data_file": "JSON path relative to HA configuration directory",
+          "feed_url": "Full JSON feed URL"
+        },
+        "data_description": {
+          "source_mode": "Automatic mode sends each selected zone’s coordinates and search radius to gdziesieukryc.pl. Default refresh interval: 24 hours."
+        }
+      }
+    },
+    "error": {
+      "invalid_zones": "Select 1 to 8 HA zones.",
+      "too_few_candidates": "Candidate count must be at least the route count.",
+      "invalid_url": "Enter a complete HTTP/HTTPS URL without credentials.",
+      "invalid_file": "Enter a JSON file path."
+    }
+  }
+}

@@ -1,0 +1,22 @@
+name: Zgłoszenie błędu
+description: Problem z integracją albo kartą mapy.
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Wersja integracji i Home Assistant
+      placeholder: Integracja 1.2.0, HA 2026.9.2
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Co się dzieje i jak odtworzyć problem?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Komunikat karty lub fragment logu
+      description: Usuń adres domu, współrzędne i tokeny. Nie dołączaj pełnego HAR.
+      render: text

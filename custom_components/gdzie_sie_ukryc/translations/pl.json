@@ -1,0 +1,64 @@
+{
+  "title": "Gdzie się ukryć",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Gdzie się ukryć",
+        "description": "Automatycznie pobieraj punkty z gdziesieukryc.pl dla Domu i wybranych stref HA. Nie potrzebujesz klucza API ani pliku. Po aktualizacji z 1.0 wybierz źródło automatyczne, aby je włączyć.",
+        "data": {
+          "source_mode": "Źródło punktów",
+          "zones": "Lokalizacje początkowe (strefy HA)",
+          "radius_km": "Promień wyszukiwania",
+          "max_routes": "Liczba pokazywanych tras",
+          "candidate_limit": "Liczba najbliższych kandydatów do obliczenia tras",
+          "update_hours": "Odświeżanie co (godziny)",
+          "routing_url": "URL usługi OSRM z profilem pieszym",
+          "data_file": "Plik JSON względem katalogu konfiguracji HA (tylko tryb plik)",
+          "feed_url": "Pełny URL feedu JSON (tylko tryb URL)"
+        },
+        "data_description": {
+          "routing_url": "Domyślnie publiczna usługa tras pieszych FOSSGIS. Przesyła współrzędne początku i końca trasy. Możesz podać własny serwer OSRM z danymi przygotowanymi profilem foot.",
+          "source_mode": "Tryb automatyczny wysyła do gdziesieukryc.pl współrzędne wybranych stref i promień. Domyślnie odświeża dane co 24 godziny."
+        }
+      }
+    },
+    "error": {
+      "invalid_zones": "Wybierz od 1 do 8 stref.",
+      "too_few_candidates": "Liczba kandydatów musi być co najmniej równa liczbie tras.",
+      "invalid_url": "Podaj pełny URL HTTP/HTTPS bez danych logowania.",
+      "invalid_file": "Podaj ścieżkę pliku JSON."
+    },
+    "abort": {
+      "single_instance_allowed": "Integracja jest już skonfigurowana. Dodatkowe strefy dodaj w jej opcjach."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Gdzie się ukryć",
+        "description": "Automatycznie pobieraj punkty z gdziesieukryc.pl dla Domu i wybranych stref HA. Nie potrzebujesz klucza API ani pliku. Po aktualizacji z 1.0 wybierz źródło automatyczne, aby je włączyć.",
+        "data": {
+          "source_mode": "Źródło punktów",
+          "zones": "Lokalizacje początkowe (strefy HA)",
+          "radius_km": "Promień wyszukiwania",
+          "max_routes": "Liczba pokazywanych tras",
+          "candidate_limit": "Liczba najbliższych kandydatów do obliczenia tras",
+          "update_hours": "Odświeżanie co (godziny)",
+          "routing_url": "URL usługi OSRM z profilem pieszym",
+          "data_file": "Plik JSON względem katalogu konfiguracji HA (tylko tryb plik)",
+          "feed_url": "Pełny URL feedu JSON (tylko tryb URL)"
+        },
+        "data_description": {
+          "routing_url": "Domyślnie publiczna usługa tras pieszych FOSSGIS. Przesyła współrzędne początku i końca trasy. Możesz podać własny serwer OSRM z danymi przygotowanymi profilem foot.",
+          "source_mode": "Tryb automatyczny wysyła do gdziesieukryc.pl współrzędne wybranych stref i promień. Domyślnie odświeża dane co 24 godziny."
+        }
+      }
+    },
+    "error": {
+      "invalid_zones": "Wybierz od 1 do 8 stref.",
+      "too_few_candidates": "Liczba kandydatów musi być co najmniej równa liczbie tras.",
+      "invalid_url": "Podaj pełny URL HTTP/HTTPS bez danych logowania.",
+      "invalid_file": "Podaj ścieżkę pliku JSON."
+    }
+  }
+}

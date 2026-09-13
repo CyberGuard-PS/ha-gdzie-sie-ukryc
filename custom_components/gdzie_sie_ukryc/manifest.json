@@ -1,0 +1,22 @@
+{
+  "domain": "gdzie_sie_ukryc",
+  "name": "Gdzie się ukryć",
+  "version": "1.2.0",
+  "config_flow": true,
+  "documentation": "https://github.com/CyberGuard-PS/ha-gdzie-sie-ukryc",
+  "dependencies": [
+    "http",
+    "websocket_api"
+  ],
+  "requirements": [],
+  "codeowners": [
+    "@CyberGuard-PS"
+  ],
+  "iot_class": "cloud_polling",
+  "integration_type": "service",
+  "issue_tracker": "https://github.com/CyberGuard-PS/ha-gdzie-sie-ukryc/issues",
+  "after_dependencies": [
+    "lovelace"
+  ],
+  "single_config_entry": true
+}

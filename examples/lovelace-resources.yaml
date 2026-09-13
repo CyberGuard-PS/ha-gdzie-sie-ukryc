@@ -1,0 +1,7 @@
+# Tylko gdy zasoby Lovelace utrzymujesz w YAML.
+# W trybie UI integracja dodaje zasób automatycznie.
+lovelace:
+  resource_mode: yaml
+  resources:
+    - url: /gdzie_sie_ukryc/frontend/gdzie-sie-ukryc-card.js?v=1.2.0
+      type: module

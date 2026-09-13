@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Test karty Gdzie się ukryć</title>
+<style>body{margin:0;background:#e8eef5;color:#203047;font:15px system-ui} main{max-width:1100px;margin:22px auto;padding:0 14px} .test{padding:12px 16px;margin-bottom:14px;background:#fff0c7;border-radius:10px;line-height:1.6}button{font:inherit;padding:6px 10px;margin:5px;border:1px solid #ccd6e1;border-radius:6px;background:white;cursor:pointer}#cards{width:100%;margin:auto}#cards.mobile{max-width:390px}ha-card{box-shadow:0 4px 20px #20304710}</style></head>
+<body><main><div class="test"><strong>Podgląd testowy</strong> — punkty na tej mapie służą wyłącznie do testu interfejsu. Nie są miejscami schronienia.<br><button id="mobile">Widok telefonu</button><button id="desktop">Widok szeroki</button><button id="cache">Symuluj zapisane trasy</button><button id="empty">Symuluj pusty import</button><button id="reset">Przywróć dane testowe</button><button id="user">Widok zwykłego użytkownika</button></div><div id="cards"></div></main>
+<script type="module">
+import '../custom_components/gdzie_sie_ukryc/frontend/gdzie-sie-ukryc-card.js';
+const original=await(await fetch('./browser_data.json')).json();
+let data=structuredClone(original);
+let revision=0;
+const card=document.createElement('gdzie-sie-ukryc-card');
+const hass={user:{is_admin:true},states:{},async callWS(message){
+ if(message.type.endsWith('/list'))return[{entry_id:'test',title:'Test'}];
+ if(message.type.endsWith('/data'))return structuredClone(data);
+ if(message.type.endsWith('/refresh'))return{updated:true};
+ if(message.type.endsWith('/import'))return{imported:message.payload.points?.length??0,skipped:0};
+ throw new Error('Unknown command');
+}};
+function update(){revision++;hass.states={'sensor.test':{entity_id:'sensor.test',last_updated:String(revision),attributes:{integration:'gdzie_sie_ukryc'}}};card.hass=hass;}
+card.setConfig({type:'custom:gdzie-sie-ukryc-card',title:'Gdzie się ukryć · test',zone:'zone.home',map_height:420});
+document.querySelector('#cards').append(card);update();
+document.querySelector('#mobile').onclick=()=>document.querySelector('#cards').classList.add('mobile');
+document.querySelector('#desktop').onclick=()=>document.querySelector('#cards').classList.remove('mobile');
+document.querySelector('#cache').onclick=()=>{data.source_status='cached';for(const location of Object.values(data.locations)){location.routing_error='Test HTTP 503';location.routes.forEach(route=>route.status='cached');}update();};
+document.querySelector('#empty').onclick=()=>{data.source_status='empty';data.point_count=0;for(const location of Object.values(data.locations)){location.routes=[];location.found_count=0;location.unrouted=[];location.routing_error=null;}update();};
+document.querySelector('#reset').onclick=()=>{data=structuredClone(original);hass.user.is_admin=true;update();};
+document.querySelector('#user').onclick=()=>{hass.user.is_admin=false;update();};
+</script></body></html>
